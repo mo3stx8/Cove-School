@@ -58,4 +58,22 @@ class User extends Authenticatable
     {
         return $this->hasMany(Notification::class);
     }
+
+    public function isStaff(): bool
+    {
+        return $this->hasAnyRole(['super_admin', 'admin', 'accountant', 'teacher']);
+    }
+
+    public function linkedStudentIds(): array
+    {
+        $ids = $this->student ? [$this->student->id] : [];
+
+        foreach ($this->guardians()->with('students:id')->get() as $guardian) {
+            foreach ($guardian->students as $student) {
+                $ids[] = $student->id;
+            }
+        }
+
+        return array_values(array_unique(array_filter($ids)));
+    }
 }

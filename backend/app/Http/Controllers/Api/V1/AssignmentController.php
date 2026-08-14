@@ -9,12 +9,17 @@ use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class AssignmentController extends Controller
 {
+    private const ALLOWED_MIME = 'pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,jpeg,png,txt,zip';
+
     public function index(Request $request)
     {
         Gate::authorize('viewAny', Assignment::class);
+
+        $this->closeExpired();
 
         $user = $request->user();
 
@@ -28,8 +33,18 @@ class AssignmentController extends Controller
         }
 
         if ($user->hasRole('student')) {
-            $student = $user->student;
-            $query->when($student?->class_id, fn ($q, $cid) => $q->where('class_id', $cid));
+            $classId = $user->student?->class_id;
+            abort_unless($classId, 403, 'No student profile linked to your account.');
+            $query->where('class_id', $classId);
+        }
+
+        if ($user->hasRole('parent')) {
+            $classIds = $user->guardians()->with('students:id,class_id')->get()
+                ->flatMap(fn ($g) => $g->students->pluck('class_id'))
+                ->filter()
+                ->unique();
+            abort_if($classIds->isEmpty(), 403, 'No children linked to your account.');
+            $query->whereIn('class_id', $classIds);
         }
 
         return response()->json([
@@ -44,20 +59,27 @@ class AssignmentController extends Controller
         $school = app(TenantContext::class)->school();
 
         $data = $request->validate([
-            'class_id' => ['required', 'exists:classes,id'],
-            'subject_id' => ['required', 'exists:subjects,id'],
+            'class_id' => ['required', Rule::exists('classes', 'id')->where('school_id', $school->id)],
+            'subject_id' => ['required', Rule::exists('subjects', 'id')->where('school_id', $school->id)],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'due_date' => ['required', 'date', 'after_or_equal:today'],
             'due_time' => ['nullable', 'date_format:H:i'],
             'attachments' => ['sometimes', 'array'],
-            'attachments.*' => ['file', 'max:10240'],
+            'attachments.*' => ['file', 'max:10240', 'mimes:'.self::ALLOWED_MIME],
         ]);
+
+        $user = $request->user();
+        if ($user->hasRole('teacher') && ! $user->hasRole('admin')) {
+            $assigned = \App\Models\SchoolClass::where('id', $data['class_id'])->first()
+                ?->classSubjects()->where('teacher_id', $user->id)->exists();
+            abort_unless($assigned, 403, 'You can only create assignments for classes you teach.');
+        }
 
         $assignment = $school->assignments()->create([
             'class_id' => $data['class_id'],
             'subject_id' => $data['subject_id'],
-            'teacher_id' => $request->user()->id,
+            'teacher_id' => $user->id,
             'title' => $data['title'],
             'description' => $data['description'] ?? null,
             'due_date' => $data['due_date'],
@@ -68,6 +90,7 @@ class AssignmentController extends Controller
         foreach ($request->file('attachments', []) as $file) {
             $path = $file->store('assignments', 'private');
             $assignment->attachments()->create([
+                'school_id' => $school->id,
                 'name' => $file->getClientOriginalName(),
                 'path' => $path,
                 'mime_type' => $file->getMimeType(),
@@ -77,6 +100,8 @@ class AssignmentController extends Controller
 
         AuditLogger::log('assignment.created', $assignment);
 
+        \App\Services\NotificationService::assignmentCreated($assignment);
+
         return response()->json(['data' => $assignment->load('subject', 'class', 'attachments')], 201);
     }
 
@@ -84,9 +109,41 @@ class AssignmentController extends Controller
     {
         Gate::authorize('view', $assignment);
 
+        if ($assignment->status === 'published' && $assignment->deadlinePassed()) {
+            $assignment->update(['status' => 'closed']);
+        }
+
         $assignment->load(['subject', 'class.grade', 'teacher', 'attachments', 'submissions.student']);
 
         return response()->json(['data' => $assignment]);
+    }
+
+    public function update(Request $request, Assignment $assignment)
+    {
+        Gate::authorize('update', $assignment);
+
+        $school = app(TenantContext::class)->school();
+
+        $data = $request->validate([
+            'class_id' => ['sometimes', Rule::exists('classes', 'id')->where('school_id', $school->id)],
+            'subject_id' => ['sometimes', Rule::exists('subjects', 'id')->where('school_id', $school->id)],
+            'title' => ['sometimes', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'due_date' => ['sometimes', 'date'],
+            'due_time' => ['nullable', 'date_format:H:i'],
+        ]);
+
+        $user = $request->user();
+        if ($user->hasRole('teacher') && ! $user->hasRole('admin') && isset($data['class_id'])) {
+            $assigned = \App\Models\SchoolClass::where('id', $data['class_id'])->first()
+                ?->classSubjects()->where('teacher_id', $user->id)->exists();
+            abort_unless($assigned, 403, 'You can only manage assignments for classes you teach.');
+        }
+
+        $assignment->update($data);
+        AuditLogger::log('assignment.updated', $assignment);
+
+        return response()->json(['data' => $assignment->load('subject', 'class', 'attachments')]);
     }
 
     public function destroy(Request $request, Assignment $assignment)
@@ -111,8 +168,11 @@ class AssignmentController extends Controller
 
         $data = $request->validate([
             'text' => ['required_without:file', 'nullable', 'string'],
-            'file' => ['nullable', 'file', 'max:20480'],
+            'file' => ['nullable', 'file', 'max:20480', 'mimes:'.self::ALLOWED_MIME],
+            'excuse' => ['nullable', 'string', 'max:500'],
         ]);
+
+        $late = $assignment->deadlinePassed();
 
         $submission = $assignment->submissions()->updateOrCreate(
             ['student_id' => $student->id],
@@ -120,7 +180,8 @@ class AssignmentController extends Controller
                 'school_id' => app(TenantContext::class)->schoolId(),
                 'text' => $data['text'] ?? null,
                 'submitted_at' => now(),
-                'status' => now()->toDateString() <= $assignment->due_date->toDateString() ? 'submitted' : 'late',
+                'status' => $late ? 'late' : 'submitted',
+                'excuse' => $late ? ($data['excuse'] ?? null) : null,
             ],
         );
 
@@ -135,6 +196,8 @@ class AssignmentController extends Controller
         }
 
         AuditLogger::log('assignment.submitted', $submission);
+
+        \App\Services\NotificationService::assignmentSubmitted($assignment, $submission, $late);
 
         return response()->json(['data' => $submission], 201);
     }
@@ -181,5 +244,18 @@ class AssignmentController extends Controller
         }
 
         return Storage::disk('private')->download($submission->file_path, $submission->file_name ?? 'submission');
+    }
+
+    protected function closeExpired(): void
+    {
+        Assignment::query()
+            ->where('status', 'published')
+            ->where('due_date', '<=', today()->toDateString())
+            ->get()
+            ->filter(fn (Assignment $assignment) => $assignment->deadlinePassed())
+            ->each(function (Assignment $assignment) {
+                $assignment->update(['status' => 'closed']);
+                AuditLogger::log('assignment.closed', $assignment);
+            });
     }
 }

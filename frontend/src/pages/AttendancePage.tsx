@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, errorMessage } from '../lib/api'
-import type { AttendanceRow, SchoolClass } from '../lib/types'
+import type { AttendanceRow, AttendanceStatus, SchoolClass } from '../lib/types'
+import { useAuth } from '../context/AuthContext'
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Spinner } from '../components/ui'
-import { Field, Input, Modal, Select } from '../components/form'
+import { Field, Input, Modal, Select, Textarea } from '../components/form'
 
 interface AttendanceCorrection {
   id: number
@@ -15,27 +17,57 @@ interface AttendanceCorrection {
   record?: { id: number; student?: { id: number; full_name: string } }
 }
 
+interface CorrectionRequest {
+  record_id: number
+  student: string
+  new_status: AttendanceStatus
+  reason: string
+}
+
 export default function AttendancePage() {
   const { t } = useTranslation()
+  const { hasRole } = useAuth()
+  const [searchParams] = useSearchParams()
+  const urlClass = searchParams.get('class_id')
+  const urlDate = searchParams.get('date')
   const [classes, setClasses] = useState<SchoolClass[]>([])
   const [classId, setClassId] = useState('')
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [date, setDate] = useState(() => (urlDate && /^\d{4}-\d{2}-\d{2}$/.test(urlDate) ? urlDate : new Date().toISOString().slice(0, 10)))
   const [rows, setRows] = useState<AttendanceRow[]>([])
   const [loading, setLoading] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const savedTimer = useRef<number | null>(null)
 
   const [corrections, setCorrections] = useState<AttendanceCorrection[]>([])
   const [corrOpen, setCorrOpen] = useState(false)
 
+  const [corrReq, setCorrReq] = useState<CorrectionRequest | null>(null)
+  const [corrReqSaving, setCorrReqSaving] = useState(false)
+
+  const isAdmin = hasRole('admin')
+  const today = new Date().toISOString().slice(0, 10)
+  const isPast = date < today
+  const canEdit = isAdmin || !isPast
+
+  const flashSaved = () => {
+    setSaved(true)
+    if (savedTimer.current) window.clearTimeout(savedTimer.current)
+    savedTimer.current = window.setTimeout(() => setSaved(false), 4000)
+  }
+
   useEffect(() => {
     void (async () => {
       const res = await api.get<{ data: SchoolClass[] }>('/classes')
-      setClasses(res.data.data)
-      const active = res.data.data.find((c) => c.is_active)
+      const all = res.data.data
+      setClasses(all)
+      const target = urlClass ? all.find((c) => String(c.id) === urlClass) : undefined
+      const active = target ?? all.find((c) => c.is_active)
       if (active) setClassId(String(active.id))
     })()
-  }, [])
+  }, [urlClass])
+
+  const gridLoaded = useRef(false)
 
   const loadGrid = useCallback(async () => {
     if (!classId || !date) return
@@ -53,17 +85,23 @@ export default function AttendancePage() {
     }
   }, [classId, date])
 
+  useEffect(() => {
+    if (classes.length > 0 && classId && date && !gridLoaded.current) {
+      gridLoaded.current = true
+      void loadGrid()
+    }
+  }, [classes, classId, date, loadGrid])
+
   const takeAttendance = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!classId || !date) return
+    if (!classId || !date || !canEdit) return
     setLoading(true)
     setError('')
     try {
       const records = Object.fromEntries(rows.map((r) => [r.student_id, r.status ?? 'present']))
       await api.post(`/classes/${classId}/attendance`, { date, records })
       await loadGrid()
-      setSaved(true)
-      await loadGrid()
+      flashSaved()
     } catch (err) {
       setError(errorMessage(err))
     } finally {
@@ -94,6 +132,35 @@ export default function AttendancePage() {
     }
   }
 
+  const openRequest = (row: AttendanceRow) => {
+    if (!row.record_id) return
+    setError('')
+    setCorrReq({
+      record_id: row.record_id,
+      student: row.name,
+      new_status: (row.status ?? 'present') as AttendanceStatus,
+      reason: '',
+    })
+  }
+
+  const submitRequest = async () => {
+    if (!corrReq) return
+    setCorrReqSaving(true)
+    setError('')
+    try {
+      await api.post(`/attendance/records/${corrReq.record_id}/correction`, {
+        new_status: corrReq.new_status,
+        reason: corrReq.reason,
+      })
+      setCorrReq(null)
+      flashSaved()
+    } catch (err) {
+      setError(errorMessage(err))
+    } finally {
+      setCorrReqSaving(false)
+    }
+  }
+
   const statusColor = (s: string | null) => (s === 'present' ? 'green' : s === 'absent' ? 'red' : s === 'late' ? 'amber' : s === 'excused' ? 'blue' : 'gray')
 
   return (
@@ -106,6 +173,17 @@ export default function AttendancePage() {
           </Button>
         }
       />
+
+      <div className="mb-4">
+        <Alert type="info">
+          <p className="font-medium">{t('attendance.rulesTitle')}</p>
+          <ul className="mt-1 list-inside list-disc space-y-0.5 text-xs">
+            <li>{t('attendance.rulesToday')}</li>
+            <li>{t('attendance.rulesPast')}</li>
+            <li>{t('attendance.rulesCorrection')}</li>
+          </ul>
+        </Alert>
+      </div>
 
       <Card className="mb-6 p-4">
         <div className="flex flex-wrap items-end gap-4">
@@ -131,7 +209,7 @@ export default function AttendancePage() {
       </Card>
 
       {error && <div className="mb-4"><Alert type="error">{error}</Alert></div>}
-      {saved && <div className="mb-4"><Alert type="success">{t('common.save')} ✓</Alert></div>}
+      {saved && <div className="mb-4"><Alert type="success">{t('attendance.saved')}</Alert></div>}
 
       {loading ? (
         <Spinner />
@@ -139,6 +217,11 @@ export default function AttendancePage() {
         <EmptyState message={t('common.noData')} />
       ) : (
         <Card>
+          {isPast && !isAdmin && (
+            <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+              {t('attendance.pastReadonly')}
+            </div>
+          )}
           <form onSubmit={(e) => void takeAttendance(e)}>
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 text-sm">
@@ -158,46 +241,54 @@ export default function AttendancePage() {
                       <td className="px-4 py-3 font-medium text-gray-900">{row.name}</td>
                       <td className="px-4 py-3">
                         {row.status ? (
-                          <Badge color={statusColor(row.status)}>{row.status}</Badge>
+                          <Badge color={statusColor(row.status)}>{t(`attendance.${row.status}`)}</Badge>
                         ) : (
                           <span className="text-xs text-gray-400">—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex gap-1.5">
-                          {['present', 'absent', 'late', 'excused'].map((status) => (
-                            <button
-                              key={status}
-                              type="button"
-                              onClick={() => setRows(rows.map((r) => (r.student_id === row.student_id ? { ...r, status: status as AttendanceRow['status'] } : r)))}
-                              className={
-                                'rounded-full px-3 py-1 text-xs font-medium transition-colors ' +
-                                (row.status === status
-                                  ? status === 'present'
-                                    ? 'bg-emerald-600 text-white'
-                                    : status === 'absent'
-                                      ? 'bg-red-600 text-white'
-                                      : status === 'late'
-                                        ? 'bg-amber-500 text-white'
-                                        : 'bg-blue-600 text-white'
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
-                              }
-                            >
-                              {t(`attendance.${status}`)}
-                            </button>
-                          ))}
-                        </div>
+                        {canEdit ? (
+                          <div className="flex gap-1.5">
+                            {(['present', 'absent', 'late', 'excused'] as AttendanceStatus[]).map((status) => (
+                              <button
+                                key={status}
+                                type="button"
+                                onClick={() => setRows(rows.map((r) => (r.student_id === row.student_id ? { ...r, status } : r)))}
+                                className={
+                                  'rounded-full px-3 py-1 text-xs font-medium transition-colors ' +
+                                  (row.status === status
+                                    ? status === 'present'
+                                      ? 'bg-emerald-600 text-white'
+                                      : status === 'absent'
+                                        ? 'bg-red-600 text-white'
+                                        : status === 'late'
+                                          ? 'bg-amber-500 text-white'
+                                          : 'bg-blue-600 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200')
+                                }
+                              >
+                                {t(`attendance.${status}`)}
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <Button variant="secondary" size="sm" disabled={!row.record_id} onClick={() => openRequest(row)}>
+                            {t('attendance.requestCorrection')}
+                          </Button>
+                        )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div className="flex justify-end border-t border-gray-200 px-4 py-3">
-              <Button type="submit" loading={loading}>
-                {t('attendance.saveAttendance')}
-              </Button>
-            </div>
+            {canEdit && (
+              <div className="flex justify-end border-t border-gray-200 px-4 py-3">
+                <Button type="submit" loading={loading}>
+                  {t('attendance.saveAttendance')}
+                </Button>
+              </div>
+            )}
           </form>
         </Card>
       )}
@@ -228,6 +319,51 @@ export default function AttendancePage() {
             ))}
           </ul>
         )}
+      </Modal>
+
+      <Modal
+        open={corrReq !== null}
+        onClose={() => setCorrReq(null)}
+        title={`${t('attendance.requestCorrection')} — ${corrReq?.student ?? ''}`}
+      >
+        {error && <div className="mb-4"><Alert type="error">{error}</Alert></div>}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            void submitRequest()
+          }}
+          className="space-y-4"
+        >
+          <Field label={t('attendance.newStatus')} required>
+            <Select
+              value={corrReq?.new_status ?? 'present'}
+              onChange={(e) => setCorrReq((m) => (m ? { ...m, new_status: e.target.value as AttendanceStatus } : m))}
+              required
+            >
+              {(['present', 'absent', 'late', 'excused'] as AttendanceStatus[]).map((s) => (
+                <option key={s} value={s}>
+                  {t(`attendance.${s}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t('attendance.reason')} required>
+            <Textarea
+              value={corrReq?.reason ?? ''}
+              onChange={(e) => setCorrReq((m) => (m ? { ...m, reason: e.target.value } : m))}
+              required
+              placeholder={t('attendance.reasonPlaceholder')}
+            />
+          </Field>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" type="button" onClick={() => setCorrReq(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="submit" loading={corrReqSaving}>
+              {t('common.submit')}
+            </Button>
+          </div>
+        </form>
       </Modal>
     </div>
   )

@@ -90,4 +90,14 @@ class TeacherController extends Controller
 
         return response()->json(['message' => 'Teacher archived.']);
     }
+
+    public function restore(Request $request, Teacher $teacher)
+    {
+        Gate::authorize('update', $teacher);
+
+        $teacher->update(['status' => 'active', 'leaving_date' => null]);
+        \App\Support\AuditLogger::log('teacher.restored', $teacher);
+
+        return new TeacherResource($teacher->load('user'));
+    }
 }

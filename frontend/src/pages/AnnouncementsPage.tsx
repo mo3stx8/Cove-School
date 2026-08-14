@@ -12,6 +12,7 @@ export default function AnnouncementsPage() {
   const [loading, setLoading] = useState(true)
 
   const [createOpen, setCreateOpen] = useState(false)
+  const [editing, setEditing] = useState<Announcement | null>(null)
   const [form, setForm] = useState({ title: '', body: '', audience: 'everyone', class_id: '', expires_at: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -39,19 +40,45 @@ export default function AnnouncementsPage() {
     })()
   }, [])
 
+  const openCreate = () => {
+    setEditing(null)
+    setForm({ title: '', body: '', audience: 'everyone', class_id: '', expires_at: '' })
+    setError('')
+    setCreateOpen(true)
+  }
+
+  const openEdit = (a: Announcement) => {
+    setEditing(a)
+    setForm({
+      title: a.title,
+      body: a.body,
+      audience: a.audience,
+      class_id: a.class_id ? String(a.class_id) : '',
+      expires_at: a.expires_at?.slice(0, 10) ?? '',
+    })
+    setError('')
+    setCreateOpen(true)
+  }
+
   const create = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     setError('')
+    const payload = {
+      title: form.title,
+      body: form.body,
+      audience: form.audience,
+      class_id: form.audience === 'class' && form.class_id ? Number(form.class_id) : undefined,
+      expires_at: form.expires_at || undefined,
+    }
     try {
-      await api.post('/announcements', {
-        title: form.title,
-        body: form.body,
-        audience: form.audience,
-        class_id: form.audience === 'class' && form.class_id ? Number(form.class_id) : undefined,
-        expires_at: form.expires_at || undefined,
-      })
+      if (editing) {
+        await api.put(`/announcements/${editing.id}`, payload)
+      } else {
+        await api.post('/announcements', payload)
+      }
       setCreateOpen(false)
+      setEditing(null)
       await load()
     } catch (err) {
       setError(errorMessage(err))
@@ -64,7 +91,7 @@ export default function AnnouncementsPage() {
 
   return (
     <div>
-      <PageHeader title={t('announcements.title')} actions={<Button onClick={() => setCreateOpen(true)}>{t('announcements.add')}</Button>} />
+      <PageHeader title={t('announcements.title')} actions={<Button onClick={openCreate}>{t('announcements.add')}</Button>} />
 
       {loading ? (
         <Spinner />
@@ -78,22 +105,25 @@ export default function AnnouncementsPage() {
                 <div>
                   <h3 className="font-semibold text-gray-800">{a.title}</h3>
                   <p className="mt-0.5 text-xs text-gray-500">
-                    {a.author?.name ?? '—'} · {a.created_at}
+                    {a.author?.name ?? '—'} · {a.created_at.slice(0, 10)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge color={audienceColor(a.audience)}>{a.audience === 'class' ? `${t('announcements.class')} ${a.class_id ?? ''}` : t(`announcements.${a.audience}`)}</Badge>
                   {a.status === 'draft' ? <Badge color="gray">{a.status}</Badge> : <Badge color="green">{t('common.active')}</Badge>}
+                  <Button variant="secondary" size="sm" onClick={() => openEdit(a)}>
+                    {t('common.edit')}
+                  </Button>
                 </div>
               </div>
               <p className="mt-3 whitespace-pre-line text-sm text-gray-600">{a.body}</p>
-              {a.expires_at && <p className="mt-2 text-xs text-gray-400">{t('announcements.expiresAt')}: {a.expires_at}</p>}
+              {a.expires_at && <p className="mt-2 text-xs text-gray-400">{t('announcements.expiresAt')}: {a.expires_at.slice(0, 10)}</p>}
             </Card>
           ))}
         </div>
       )}
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t('announcements.add')} wide>
+      <Modal open={createOpen} onClose={() => { setCreateOpen(false); setEditing(null) }} title={editing ? t('announcements.edit') : t('announcements.add')} wide>
         {error && <div className="mb-4"><Alert type="error">{error}</Alert></div>}
         <form onSubmit={(e) => void create(e)} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="col-span-full">
@@ -132,7 +162,7 @@ export default function AnnouncementsPage() {
             </Field>
           )}
           <div className="col-span-full mt-4 flex justify-end gap-2">
-            <Button variant="secondary" type="button" onClick={() => setCreateOpen(false)}>
+            <Button variant="secondary" type="button" onClick={() => { setCreateOpen(false); setEditing(null) }}>
               {t('common.cancel')}
             </Button>
             <Button type="submit" loading={saving}>

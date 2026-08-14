@@ -22,7 +22,8 @@ class DashboardController extends Controller
             $user->hasRole('student') => $this->studentDashboard($user),
             $user->hasRole('parent') => $this->parentDashboard($user),
             $user->hasRole('accountant') => $this->accountantDashboard($school),
-            default => $this->adminDashboard($school),
+            $user->hasRole('admin') || $user->hasRole('super_admin') => $this->adminDashboard($school),
+            default => abort(403, 'You do not have a role assigned.'),
         };
 
         return response()->json($data);

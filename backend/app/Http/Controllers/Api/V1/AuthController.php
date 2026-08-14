@@ -162,12 +162,10 @@ class AuthController extends Controller
 
         RateLimiter::hit($key, 600);
 
-        $status = \Illuminate\Support\Facades\Password::sendResetLink($data);
+        \Illuminate\Support\Facades\Password::sendResetLink($data);
 
         return response()->json([
-            'message' => $status === \Illuminate\Support\Facades\Password::RESET_LINK_SENT
-                ? 'Password reset link sent to your email.'
-                : 'We could not find an account with that email.',
+            'message' => 'If an account exists for that email, a password reset link has been sent.',
         ]);
     }
 

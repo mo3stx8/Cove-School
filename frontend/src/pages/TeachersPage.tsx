@@ -3,22 +3,23 @@ import { useTranslation } from 'react-i18next'
 import { api, errorMessage, listMeta, unwrapList } from '../lib/api'
 import type { Teacher } from '../lib/types'
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Pagination, Spinner, Table } from '../components/ui'
-import { Field, Input, Modal } from '../components/form'
+import { Field, Input, Modal, Select } from '../components/form'
+import { useToast } from '../components/Toast'
 
 interface TeacherForm {
   name: string
   email: string
   phone: string
-  employee_id: string
   qualification: string
   joining_date: string
   address: string
 }
 
-const emptyForm: TeacherForm = { name: '', email: '', phone: '', employee_id: '', qualification: '', joining_date: '', address: '' }
+const emptyForm: TeacherForm = { name: '', email: '', phone: '', qualification: '', joining_date: '', address: '' }
 
 export default function TeachersPage() {
   const { t } = useTranslation()
+  const toast = useToast()
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [page, setPage] = useState(1)
   const [lastPage, setLastPage] = useState(1)
@@ -29,11 +30,12 @@ export default function TeachersPage() {
   const [form, setForm] = useState<TeacherForm>(emptyForm)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [status, setStatus] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await api.get<{ data: unknown }>('/teachers', { params: { per_page: 25, page } })
+      const res = await api.get<{ data: unknown }>('/teachers', { params: { per_page: 25, page, status: status || undefined } })
       setTeachers(unwrapList<Teacher>(res.data))
       const meta = listMeta(res.data)
       setLastPage(meta.last_page)
@@ -43,7 +45,7 @@ export default function TeachersPage() {
     } finally {
       setLoading(false)
     }
-  }, [page])
+  }, [page, status])
 
   useEffect(() => {
     void load()
@@ -62,7 +64,6 @@ export default function TeachersPage() {
       name: teacher.user?.name ?? '',
       email: teacher.user?.email ?? '',
       phone: teacher.user?.phone ?? '',
-      employee_id: teacher.employee_id ?? '',
       qualification: teacher.qualification ?? '',
       joining_date: teacher.joining_date ?? '',
       address: '',
@@ -79,7 +80,6 @@ export default function TeachersPage() {
       name: form.name,
       email: form.email,
       phone: form.phone || undefined,
-      employee_id: form.employee_id || undefined,
       qualification: form.qualification || undefined,
       joining_date: form.joining_date || undefined,
       address: form.address || undefined,
@@ -100,12 +100,25 @@ export default function TeachersPage() {
   }
 
   const archive = async (teacher: Teacher) => {
-    if (!confirm(`Archive ${teacher.user?.name}?`)) return
     try {
       await api.post(`/teachers/${teacher.id}/archive`)
       await load()
-    } catch {
-      // ignore
+      toast.success(t('teachers.archived', { name: teacher.user?.name }), {
+        label: t('common.undo'),
+        onClick: () => void restore(teacher),
+      })
+    } catch (err) {
+      toast.error(errorMessage(err))
+    }
+  }
+
+  const restore = async (teacher: Teacher) => {
+    try {
+      await api.post(`/teachers/${teacher.id}/restore`)
+      await load()
+      toast.success(t('teachers.restored', { name: teacher.user?.name }))
+    } catch (err) {
+      toast.error(errorMessage(err))
     }
   }
 
@@ -115,6 +128,21 @@ export default function TeachersPage() {
         title={t('teachers.title')}
         actions={<Button onClick={openAdd}>{t('teachers.addTeacher')}</Button>}
       />
+
+      <Card className="mb-4 p-3">
+        <Select
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value)
+            setPage(1)
+          }}
+          className="w-44"
+        >
+          <option value="">{t('teachers.statusAll')}</option>
+          <option value="active">{t('common.active')}</option>
+          <option value="archived">{t('common.archived')}</option>
+        </Select>
+      </Card>
 
       {loading ? (
         <Spinner />
@@ -140,9 +168,13 @@ export default function TeachersPage() {
                     <Button variant="secondary" size="sm" onClick={() => openEdit(teacher)}>
                       {t('common.edit')}
                     </Button>
-                    {teacher.status === 'active' && (
+                    {teacher.status === 'active' ? (
                       <Button variant="danger" size="sm" onClick={() => void archive(teacher)}>
                         {t('common.archive')}
+                      </Button>
+                    ) : (
+                      <Button variant="secondary" size="sm" onClick={() => void restore(teacher)}>
+                        {t('teachers.restoreTeacher')}
                       </Button>
                     )}
                   </div>
@@ -165,9 +197,6 @@ export default function TeachersPage() {
           </Field>
           <Field label={t('teachers.phone')}>
             <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          </Field>
-          <Field label={t('teachers.employeeId')}>
-            <Input value={form.employee_id} onChange={(e) => setForm({ ...form, employee_id: e.target.value })} />
           </Field>
           <Field label={t('teachers.qualification')}>
             <Input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} />

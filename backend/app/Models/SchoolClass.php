@@ -63,6 +63,11 @@ class SchoolClass extends Model
         return $this->hasMany(AttendanceSession::class, 'class_id');
     }
 
+    public function assignments(): HasMany
+    {
+        return $this->hasMany(Assignment::class, 'class_id');
+    }
+
     public function subjects(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(Subject::class, 'class_subjects')->withPivot(['teacher_id', 'weekly_periods']);

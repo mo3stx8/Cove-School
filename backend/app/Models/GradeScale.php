@@ -28,8 +28,8 @@ class GradeScale extends Model
     public static function gradeFor(int $schoolId, float $percentage): ?GradeScale
     {
         return static::forSchool($schoolId)
-            ->where('min_percentage', '<=', $percentage)
-            ->where('max_percentage', '>=', $percentage)
+            ->whereRaw('min_percentage::numeric <= ?', [$percentage])
+            ->whereRaw('max_percentage::numeric >= ?', [$percentage])
             ->orderBy('min_percentage')
             ->first();
     }

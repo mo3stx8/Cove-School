@@ -10,6 +10,7 @@ use App\Models\Term;
 use App\Support\AuditLogger;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 class AcademicController extends Controller
@@ -23,21 +24,99 @@ class AcademicController extends Controller
         return response()->json(['data' => $years]);
     }
 
-    public function setCurrentAcademicYear(Request $request, AcademicYear $year)
+    public function storeAcademicYear(Request $request)
     {
+        abort_unless($request->user()->hasPermissionTo('settings.manage'), 403);
+
+        $school = app(TenantContext::class)->school();
+
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'is_current' => ['sometimes', 'boolean'],
+        ]);
+
+        $isCurrent = $data['is_current'] ?? ($school->academicYears()->count() === 0);
+
+        $year = DB::transaction(function () use ($data, $school, $isCurrent) {
+            if ($isCurrent) {
+                AcademicYear::where('school_id', $school->id)->update(['is_current' => false]);
+            }
+
+            $year = $school->academicYears()->create([
+                'name' => $data['name'],
+                'start_date' => $data['start_date'],
+                'end_date' => $data['end_date'],
+                'is_current' => $isCurrent,
+            ]);
+
+            if ($isCurrent) {
+                $school->update(['current_academic_year_id' => $year->id]);
+            }
+
+            return $year;
+        });
+
+        AuditLogger::log('academic_year.created', $year);
+
+        return response()->json(['data' => $year->load('terms')], 201);
+    }
+
+    public function setCurrentAcademicYear(Request $request, AcademicYear $academicYear)
+    {
+        abort_unless($request->user()->hasPermissionTo('settings.manage'), 403);
+
         $school = app(TenantContext::class)->school();
 
         AcademicYear::where('school_id', $school->id)->update(['is_current' => false]);
-        $year->update(['is_current' => true]);
-        $school->update(['current_academic_year_id' => $year->id]);
+        $academicYear->update(['is_current' => true]);
+        $school->update(['current_academic_year_id' => $academicYear->id]);
 
-        AuditLogger::log('academic_year.set_current', $year);
+        AuditLogger::log('academic_year.set_current', $academicYear);
 
-        return response()->json(['data' => $year->load('terms')]);
+        return response()->json(['data' => $academicYear->load('terms')]);
     }
 
-    public function storeTerm(Request $request, AcademicYear $year)
+    public function updateAcademicYear(Request $request, AcademicYear $academicYear)
     {
+        abort_unless($request->user()->hasPermissionTo('settings.manage'), 403);
+
+        $school = app(TenantContext::class)->school();
+
+        $data = $request->validate([
+            'name' => ['sometimes', 'string', 'max:255'],
+            'start_date' => ['sometimes', 'date'],
+            'end_date' => ['sometimes', 'date', 'after_or_equal:start_date'],
+            'is_current' => ['sometimes', 'boolean'],
+        ]);
+
+        DB::transaction(function () use ($school, $academicYear, $data) {
+            if (($data['is_current'] ?? false) === true && ! $academicYear->is_current) {
+                AcademicYear::where('school_id', $school->id)->update(['is_current' => false]);
+            }
+
+            $academicYear->update($data);
+
+            if (($data['is_current'] ?? false) === true) {
+                $school->update(['current_academic_year_id' => $academicYear->id]);
+            }
+        });
+
+        AuditLogger::log('academic_year.updated', $academicYear);
+
+        return response()->json(['data' => $academicYear->load('terms')]);
+    }
+
+    public function terms(Request $request, AcademicYear $academicYear)
+    {
+        return response()->json(['data' => $academicYear->terms()->orderBy('term_number')->get()]);
+    }
+
+    public function storeTerm(Request $request, AcademicYear $academicYear)
+    {
+        abort_unless($request->user()->hasPermissionTo('settings.manage'), 403);
+
         $school = app(TenantContext::class)->school();
 
         $data = $request->validate([
@@ -48,7 +127,7 @@ class AcademicController extends Controller
             'is_current' => ['sometimes', 'boolean'],
         ]);
 
-        $term = $year->terms()->create([
+        $term = $academicYear->terms()->create([
             'school_id' => $school->id,
             'name' => $data['name'],
             'term_number' => $data['term_number'],
@@ -64,6 +143,8 @@ class AcademicController extends Controller
 
     public function updateTerm(Request $request, Term $term)
     {
+        abort_unless($request->user()->hasPermissionTo('settings.manage'), 403);
+
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
             'start_date' => ['sometimes', 'date'],

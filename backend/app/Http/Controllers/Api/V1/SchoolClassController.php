@@ -16,7 +16,7 @@ class SchoolClassController extends Controller
         Gate::authorize('viewAny', SchoolClass::class);
 
         $classes = SchoolClass::query()
-            ->with(['grade', 'academicYear', 'classTeacher'])
+            ->with(['grade', 'academicYear', 'classTeacher', 'classSubjects.subject'])
             ->when($request->input('grade_id'), fn ($q, $id) => $q->where('grade_id', $id))
             ->when($request->input('academic_year_id'), fn ($q, $id) => $q->where('academic_year_id', $id))
             ->when($request->input('search'), fn ($q, $s) => $q->where('name', 'ilike', "%{$s}%"))
@@ -134,6 +134,25 @@ class SchoolClassController extends Controller
         return response()->json(['data' => $this->format($class->load('classSubjects.subject'), true)]);
     }
 
+    public function assignStudents(Request $request, SchoolClass $class)
+    {
+        Gate::authorize('update', $class);
+
+        $data = $request->validate([
+            'student_ids' => ['required', 'array'],
+            'student_ids.*' => ['exists:students,id'],
+        ]);
+
+        $ids = array_unique(array_map('intval', $data['student_ids']));
+
+        $old = $class->students()->pluck('id')->all();
+        $count = \App\Models\Student::whereIn('id', $ids)->update(['class_id' => $class->id]);
+
+        AuditLogger::log('class.students_assigned', $class, ['student_ids' => $old], ['student_ids' => $ids]);
+
+        return response()->json(['message' => "{$count} student(s) assigned.", 'students_count' => $class->students()->count()]);
+    }
+
     protected function format(SchoolClass $class, bool $detail = false): array
     {
         return [
@@ -147,7 +166,7 @@ class SchoolClassController extends Controller
             'grade' => $class->grade ? ['id' => $class->grade->id, 'name' => $class->grade->name] : null,
             'academic_year' => $class->academicYear ? ['id' => $class->academicYear->id, 'name' => $class->academicYear->name] : null,
             'class_teacher' => $class->classTeacher ? ['id' => $class->classTeacher->id, 'name' => $class->classTeacher->name] : null,
-            'subjects' => $detail ? $class->classSubjects->map(fn ($cs) => [
+            'subjects' => $class->relationLoaded('classSubjects') ? $class->classSubjects->map(fn ($cs) => [
                 'subject_id' => $cs->subject_id,
                 'subject_name' => $cs->subject->name ?? null,
                 'teacher_id' => $cs->teacher_id,

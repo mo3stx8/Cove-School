@@ -16,8 +16,24 @@ class TimetableController extends Controller
     {
         Gate::authorize('viewAny', Timetable::class);
 
-        $query = Timetable::query()->with(['class.grade', 'entries.subject', 'entries.teacher'])
-            ->when($class, fn ($q) => $q->where('class_id', $class->id));
+        $user = $request->user();
+
+        $query = Timetable::query()->with(['class.grade', 'entries.subject', 'entries.teacher']);
+
+        if ($user->hasRole('student')) {
+            $classId = $user->student?->class_id;
+            abort_unless($classId, 403, 'No student profile linked to your account.');
+            $query->where('class_id', $classId);
+        } elseif ($user->hasRole('parent')) {
+            $classIds = $user->guardians()->with('students:id,class_id')->get()
+                ->flatMap(fn ($g) => $g->students->pluck('class_id'))
+                ->filter()
+                ->unique();
+            abort_if($classIds->isEmpty(), 403, 'No children linked to your account.');
+            $query->whereIn('class_id', $classIds);
+        } elseif ($class) {
+            $query->where('class_id', $class->id);
+        }
 
         return response()->json(['data' => $query->get()]);
     }

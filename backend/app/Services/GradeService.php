@@ -12,8 +12,8 @@ class GradeService
     public static function gradeFor(int $schoolId, float $percentage): ?GradeScale
     {
         return GradeScale::forSchool($schoolId)
-            ->where('min_percentage', '<=', $percentage)
-            ->where('max_percentage', '>=', $percentage)
+            ->whereRaw('min_percentage::numeric <= ?', [$percentage])
+            ->whereRaw('max_percentage::numeric >= ?', [$percentage])
             ->orderBy('min_percentage')
             ->first();
     }

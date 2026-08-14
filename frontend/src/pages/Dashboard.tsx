@@ -46,16 +46,16 @@ export default function Dashboard() {
 
 function StatCard({ label, value, icon, color }: { label: string; value: string | number; icon: string; color: string }) {
   return (
-    <Card className="p-5">
+    <Card className="min-w-0 p-5">
       <div className="flex items-center gap-3">
-        <div className={`flex h-11 w-11 items-center justify-center rounded-lg ${color}`}>
+        <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-lg ${color}`}>
           <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
             <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
           </svg>
         </div>
-        <div>
-          <p className="text-xs font-medium text-gray-500">{label}</p>
-          <p className="text-2xl font-semibold text-gray-900">{value}</p>
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium text-gray-500">{label}</p>
+          <p className="truncate text-lg font-semibold text-gray-900 sm:text-xl">{value}</p>
         </div>
       </div>
     </Card>
@@ -68,9 +68,9 @@ function AdminView({ data }: { data: AdminDashboard }) {
   return (
     <div>
       <PageHeader title={t('nav.dashboard')} subtitle={`${t('dashboard.welcome')}, ${data.role}`} />
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-6">
-        <StatCard label={t('dashboard.totalStudents')} value={stats.total_students} color="bg-indigo-600" icon="M16 11a1 1 0 00-1-1H9a1 1 0 00-1 1v1h8v-1z" />
-        <StatCard label={t('dashboard.totalTeachers')} value={stats.total_teachers} color="bg-emerald-600" icon="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857" />
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+        <StatCard label={t('dashboard.totalStudents')} value={stats.total_students} color="bg-indigo-600" icon="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+        <StatCard label={t('dashboard.totalTeachers')} value={stats.total_teachers} color="bg-emerald-600" icon="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
         <StatCard label={t('dashboard.totalClasses')} value={stats.total_classes} color="bg-blue-600" icon="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1" />
         <StatCard label={t('dashboard.attendanceToday')} value={stats.attendance_today_rate === null ? '—' : `${stats.attendance_today_rate}%`} color="bg-purple-600" icon="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         <StatCard label={t('dashboard.absentToday')} value={stats.absent_today} color="bg-red-600" icon="M10 9v6m4-6v6m-8 8h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />

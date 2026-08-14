@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { api, errorMessage } from '../lib/api'
-import type { AcademicYear, Grade, SchoolClass, Subject, Teacher } from '../lib/types'
+import { api, errorMessage, unwrapList } from '../lib/api'
+import type { AcademicYear, Grade, SchoolClass, Student, Subject, Teacher } from '../lib/types'
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Spinner } from '../components/ui'
 import { Field, Input, Modal, Select } from '../components/form'
 
@@ -30,6 +30,11 @@ export default function ClassesPage() {
   const [subjectsModal, setSubjectsModal] = useState<SchoolClass | null>(null)
   const [subjectRows, setSubjectRows] = useState<{ subject_id: string; teacher_id: string; weekly_periods: string }[]>([])
   const [savingSubjects, setSavingSubjects] = useState(false)
+
+  const [assignModal, setAssignModal] = useState<SchoolClass | null>(null)
+  const [studentRows, setStudentRows] = useState<Student[]>([])
+  const [assigningStudents, setAssigningStudents] = useState(false)
+  const [assignStudentsError, setAssignStudentsError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -132,6 +137,34 @@ export default function ClassesPage() {
     setError('')
   }
 
+  const openAssignStudents = async (cls: SchoolClass) => {
+    setAssignStudentsError('')
+    setAssignModal(cls)
+    setStudentRows([])
+    try {
+      const res = await api.get<{ data: unknown }>('/students', { params: { per_page: 500, status: 'active' } })
+      setStudentRows(unwrapList<Student>(res.data))
+    } catch {
+      setAssignStudentsError(errorMessage(new Error('Failed to load students.')))
+    }
+  }
+
+  const saveAssignStudents = async () => {
+    if (!assignModal) return
+    setAssigningStudents(true)
+    setAssignStudentsError('')
+    try {
+      const student_ids = studentRows.filter((s) => s.class_id === assignModal.id).map((s) => s.id)
+      await api.post(`/classes/${assignModal.id}/assign-students`, { student_ids })
+      setAssignModal(null)
+      await load()
+    } catch (err) {
+      setAssignStudentsError(errorMessage(err))
+    } finally {
+      setAssigningStudents(false)
+    }
+  }
+
   const saveSubjects = async () => {
     if (!subjectsModal) return
     setSavingSubjects(true)
@@ -191,6 +224,9 @@ export default function ClassesPage() {
                 </Button>
                 <Button variant="secondary" size="sm" onClick={() => openAssignSubjects(cls)}>
                   {t('classes.assignSubjects')}
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => void openAssignStudents(cls)}>
+                  {t('classes.assignStudents')}
                 </Button>
                 <Button variant="danger" size="sm" onClick={() => void remove(cls)}>
                   {t('common.delete')}
@@ -315,6 +351,50 @@ export default function ClassesPage() {
               {t('common.save')}
             </Button>
           </div>
+        </div>
+      </Modal>
+
+      <Modal open={assignModal !== null} onClose={() => setAssignModal(null)} title={`${t('classes.assignStudents')} — ${assignModal?.name ?? ''}`} wide>
+        {assignStudentsError && <div className="mb-4"><Alert type="error">{assignStudentsError}</Alert></div>}
+        <p className="mb-3 text-sm text-gray-500">{t('classes.assignStudentsHint')}</p>
+        {studentRows.length === 0 ? (
+          <EmptyState message={t('classes.noStudentsToAssign')} />
+        ) : (
+          <>
+            <div className="mb-2 flex justify-end">
+              <label className="flex items-center gap-2 text-sm text-gray-600">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  checked={studentRows.length > 0 && studentRows.every((s) => s.class_id === assignModal?.id)}
+                  onChange={(e) => setStudentRows(studentRows.map((s) => ({ ...s, class_id: e.target.checked ? (assignModal?.id as number) : 0 })))}
+                />
+                {t('common.selectAll')}
+              </label>
+            </div>
+            <ul className="max-h-80 divide-y divide-gray-100 overflow-y-auto rounded-lg border border-gray-200">
+              {studentRows.map((s) => (
+                <li key={s.id} className="flex items-center justify-between px-3 py-2">
+                  <span className="truncate text-sm text-gray-700">{s.full_name}</span>
+                  <span className="text-xs text-gray-400">{s.class?.name ?? t('classes.noClass')}</span>
+                  <input
+                    type="checkbox"
+                    className="ml-3 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    checked={s.class_id === assignModal?.id}
+                    onChange={(e) => setStudentRows(studentRows.map((r) => (r.id === s.id ? { ...r, class_id: e.target.checked ? (assignModal?.id as number) : 0 } : r)))}
+                  />
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+        <div className="flex justify-end gap-2 pt-4">
+          <Button variant="secondary" onClick={() => setAssignModal(null)}>
+            {t('common.cancel')}
+          </Button>
+          <Button onClick={() => void saveAssignStudents()} loading={assigningStudents}>
+            {t('common.save')}
+          </Button>
         </div>
       </Modal>
     </div>

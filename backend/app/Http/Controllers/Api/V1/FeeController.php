@@ -73,8 +73,11 @@ class FeeController extends Controller
     {
         Gate::authorize('viewAny', StudentFee::class);
 
+        $user = $request->user();
+
         $query = StudentFee::query()
             ->with(['student', 'feeType', 'term'])
+            ->when($user->hasRole('parent'), fn ($q) => $q->whereIn('student_id', $user->linkedStudentIds() ?: [0]))
             ->when($request->input('student_id'), fn ($q, $id) => $q->where('student_id', $id))
             ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
             ->when($request->input('class_id'), fn ($q, $id) => $q->whereHas('student', fn ($s) => $s->where('class_id', $id)));
@@ -140,7 +143,20 @@ class FeeController extends Controller
             ->with(['student', 'studentFee'])
             ->when($request->input('student_id'), fn ($q, $id) => $q->where('student_id', $id))
             ->when($request->input('from'), fn ($q, $from) => $q->whereDate('paid_at', '>=', $from))
-            ->when($request->input('to'), fn ($q, $to) => $q->whereDate('paid_at', '<=', $to));
+            ->when($request->input('to'), fn ($q, $to) => $q->whereDate('paid_at', '<=', $to))
+            ->when($request->input('search'), function ($q, $search) {
+                $q->where(function ($w) use ($search) {
+                    $w->where('receipt_number', 'ilike', "%{$search}%")
+                        ->orWhere('payment_method', 'ilike', "%{$search}%")
+                        ->orWhereRaw('amount::text ilike ?', ["%{$search}%"])
+                        ->orWhereHas('student', function ($s) use ($search) {
+                            $s->where('first_name', 'ilike', "%{$search}%")
+                                ->orWhere('last_name', 'ilike', "%{$search}%")
+                                ->orWhere('student_number', 'ilike', "%{$search}%");
+                        })
+                        ->orWhereHas('studentFee', fn ($f) => $f->where('invoice_number', 'ilike', "%{$search}%"));
+                });
+            });
 
         return response()->json(['data' => $query->latest('paid_at')->paginate($request->integer('per_page', 25))]);
     }

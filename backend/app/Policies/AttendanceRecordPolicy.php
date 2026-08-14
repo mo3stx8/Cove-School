@@ -9,10 +9,6 @@ class AttendanceRecordPolicy
 {
     public function view(User $user, AttendanceRecord $record): bool
     {
-        if ($user->hasPermissionTo('attendance.view')) {
-            return true;
-        }
-
         $student = $record->student;
 
         if ($user->student && $user->student->is($student)) {
@@ -23,7 +19,11 @@ class AttendanceRecordPolicy
             return true;
         }
 
-        return false;
+        if (! $user->isStaff()) {
+            return false;
+        }
+
+        return $user->hasPermissionTo('attendance.view');
     }
 
     public function take(User $user): bool

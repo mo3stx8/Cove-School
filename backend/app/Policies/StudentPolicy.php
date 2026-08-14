@@ -10,6 +10,10 @@ class StudentPolicy
 {
     public function viewAny(User $user): bool
     {
+        if ($user->hasRole('student') || $user->hasRole('parent')) {
+            return false;
+        }
+
         return $user->hasAnyPermission([
             'students.view', 'students.create', 'students.update', 'students.archive',
             'attendance.view', 'attendance.take', 'fees.view', 'grades.enter',
@@ -19,15 +23,19 @@ class StudentPolicy
 
     public function view(User $user, Student $student): bool
     {
-        if ($user->hasAnyPermission(['students.view', 'students.create', 'students.update', 'students.archive'])) {
-            return true;
-        }
-
         if ($user->student && $user->student->is($student)) {
             return true;
         }
 
         if (Guardian::where('user_id', $user->id)->whereHas('students', fn ($q) => $q->where('students.id', $student->id))->exists()) {
+            return true;
+        }
+
+        if (! $user->isStaff()) {
+            return false;
+        }
+
+        if ($user->hasAnyPermission(['students.view', 'students.update', 'students.archive'])) {
             return true;
         }
 

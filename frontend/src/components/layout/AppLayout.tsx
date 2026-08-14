@@ -34,10 +34,18 @@ export default function AppLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('cove_sidebar_collapsed') === '1')
   const [lang, setLang] = useState(localStorage.getItem('cove_locale') ?? 'en')
   const [unread, setUnread] = useState(0)
 
   const role = roleOf(user)
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev) => {
+      localStorage.setItem('cove_sidebar_collapsed', prev ? '0' : '1')
+      return !prev
+    })
+  }
 
   const items = navItems.filter(
     (item) => item.roles.includes('*') || item.roles.includes(role),
@@ -70,15 +78,18 @@ export default function AppLayout() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed inset-y-0 z-40 w-64 bg-gray-900 text-gray-100 transition-[inset-inline-start] duration-300 lg:start-0',
+          'fixed inset-y-0 z-40 w-64 bg-gray-900 text-gray-100 transition-[inset-inline-start,width] duration-300 lg:start-0',
+          collapsed ? 'lg:w-20' : 'lg:w-64',
           sidebarOpen ? 'start-0' : '-start-full',
         )}
       >
-        <div className="flex h-16 items-center gap-2 border-b border-gray-800 px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-600 text-lg font-bold text-white">
-            C
-          </div>
-          <div>
+        <div className={cn('flex h-16 items-center gap-2 border-b border-gray-800 px-5', collapsed ? 'lg:justify-center lg:px-0' : '')}>
+          <img
+            src="/Cove-Logo2-NBG.png"
+            alt={t('appName')}
+            className={cn('h-9 w-9 rounded-lg object-contain', collapsed ? 'lg:h-10 lg:w-10' : '')}
+          />
+          <div className={cn(collapsed ? 'lg:hidden' : '')}>
             <p className="text-sm font-semibold leading-tight">{t('appName')}</p>
             <p className="text-[11px] text-gray-400">{t('tagline')}</p>
           </div>
@@ -89,9 +100,11 @@ export default function AppLayout() {
               key={item.to}
               to={item.to}
               onClick={() => setSidebarOpen(false)}
+              title={collapsed ? t(item.key) : undefined}
               className={({ isActive }) =>
                 cn(
                   'mb-1 flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                  collapsed ? 'lg:justify-center lg:px-0' : '',
                   isActive ? 'bg-indigo-600 text-white' : 'text-gray-300 hover:bg-gray-800 hover:text-white',
                 )
               }
@@ -99,7 +112,7 @@ export default function AppLayout() {
               <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d={item.icon} />
               </svg>
-              {t(item.key)}
+              <span className={cn(collapsed ? 'lg:hidden' : '')}>{t(item.key)}</span>
             </NavLink>
           ))}
         </nav>
@@ -107,7 +120,7 @@ export default function AppLayout() {
       {sidebarOpen && <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* Main */}
-      <div className="lg:ms-64">
+      <div className={cn(collapsed ? 'lg:ms-20' : 'lg:ms-64')}>
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 lg:px-8">
           <div className="flex items-center gap-3">
             <button
@@ -117,6 +130,20 @@ export default function AppLayout() {
             >
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <button
+              className="hidden rounded-md p-2 text-gray-500 hover:bg-gray-100 lg:block"
+              onClick={toggleCollapsed}
+              aria-label="Toggle sidebar"
+              title={collapsed ? t('common.expand') : t('common.collapse')}
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                {collapsed ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5l-7 7 7 7M19 5l-7 7 7 7" />
+                )}
               </svg>
             </button>
             <p className="hidden text-sm font-medium text-gray-500 sm:block">

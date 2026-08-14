@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, errorMessage, listMeta, unwrapList } from '../lib/api'
 import type { SchoolClass, Student } from '../lib/types'
-import { useAuth } from '../context/AuthContext'
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Pagination, Spinner, Table } from '../components/ui'
 import { Field, Input, Modal, Select } from '../components/form'
+import { useToast } from '../components/Toast'
+import { useAuth } from '../context/AuthContext'
 
 interface StudentForm {
   first_name: string
@@ -48,6 +49,7 @@ const emptyForm: StudentForm = {
 
 export default function StudentsPage() {
   const { t } = useTranslation()
+  const toast = useToast()
   const { hasRole } = useAuth()
   const [students, setStudents] = useState<Student[]>([])
   const [page, setPage] = useState(1)
@@ -61,11 +63,16 @@ export default function StudentsPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
+  const [status, setStatus] = useState('')
+
+  const [assignModal, setAssignModal] = useState<{ student: Student; class_id: string } | null>(null)
+  const [assigning, setAssigning] = useState(false)
+  const [assignError, setAssignError] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await api.get<{ data: unknown }>('/students', { params: { per_page: 25, page, search: search || undefined } })
+      const res = await api.get<{ data: unknown }>('/students', { params: { per_page: 25, page, search: search || undefined, status: status || undefined } })
       setStudents(unwrapList<Student>(res.data))
       const meta = listMeta(res.data)
       setLastPage(meta.last_page)
@@ -75,7 +82,7 @@ export default function StudentsPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, search])
+  }, [page, search, status])
 
   useEffect(() => {
     void load()
@@ -161,12 +168,45 @@ export default function StudentsPage() {
   }
 
   const archive = async (s: Student) => {
-    if (!confirm(`Archive ${s.full_name}?`)) return
     try {
       await api.post(`/students/${s.id}/archive`)
       await load()
-    } catch {
-      // ignore
+      toast.success(t('students.archived', { name: s.full_name }), {
+        label: t('common.undo'),
+        onClick: () => void restore(s),
+      })
+    } catch (err) {
+      toast.error(errorMessage(err))
+    }
+  }
+
+  const restore = async (s: Student) => {
+    try {
+      await api.post(`/students/${s.id}/restore`)
+      await load()
+      toast.success(t('students.restored', { name: s.full_name }))
+    } catch (err) {
+      toast.error(errorMessage(err))
+    }
+  }
+
+  const openAssign = (s: Student) => {
+    setAssignModal({ student: s, class_id: s.class_id ? String(s.class_id) : '' })
+    setAssignError('')
+  }
+
+  const submitAssign = async () => {
+    if (!assignModal || !assignModal.class_id) return
+    setAssigning(true)
+    setAssignError('')
+    try {
+      await api.post(`/students/${assignModal.student.id}/assign-class`, { class_id: Number(assignModal.class_id) })
+      setAssignModal(null)
+      await load()
+    } catch (err) {
+      setAssignError(errorMessage(err))
+    } finally {
+      setAssigning(false)
     }
   }
 
@@ -181,14 +221,29 @@ export default function StudentsPage() {
         }
       />
       <Card className="mb-4 p-3">
-        <Input
-          placeholder={t('common.search')}
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value)
-            setPage(1)
-          }}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            placeholder={t('common.search')}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value)
+              setPage(1)
+            }}
+            className="max-w-sm"
+          />
+          <Select
+            value={status}
+            onChange={(e) => {
+              setStatus(e.target.value)
+              setPage(1)
+            }}
+            className="w-44"
+          >
+            <option value="">{t('students.statusAll')}</option>
+            <option value="active">{t('common.active')}</option>
+            <option value="archived">{t('common.archived')}</option>
+          </Select>
+        </div>
       </Card>
 
       {loading ? (
@@ -216,9 +271,16 @@ export default function StudentsPage() {
                         <Button variant="secondary" size="sm" onClick={() => openEdit(s)}>
                           {t('common.edit')}
                         </Button>
-                        {s.status === 'active' && (
+                        <Button variant="secondary" size="sm" onClick={() => openAssign(s)}>
+                          {t('students.assignClass')}
+                        </Button>
+                        {s.status === 'active' ? (
                           <Button variant="danger" size="sm" onClick={() => void archive(s)}>
                             {t('common.archive')}
+                          </Button>
+                        ) : (
+                          <Button variant="secondary" size="sm" onClick={() => void restore(s)}>
+                            {t('students.restoreStudent')}
                           </Button>
                         )}
                       </>
@@ -273,7 +335,7 @@ export default function StudentsPage() {
           <Field label={t('students.nationality')}>
             <Input value={form.nationality} onChange={(e) => setForm({ ...form, nationality: e.target.value })} />
           </Field>
-          <Field label={t('students.emergencyContact')}>
+          <Field label={t('students.emergencyContactName')}>
             <Input value={form.emergency_contact_name} onChange={(e) => setForm({ ...form, emergency_contact_name: e.target.value })} />
           </Field>
           <Field label={t('students.emergencyContactRelationship')}>
@@ -306,6 +368,39 @@ export default function StudentsPage() {
               {t('common.cancel')}
             </Button>
             <Button type="submit" loading={saving}>
+              {t('common.save')}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal open={assignModal !== null} onClose={() => setAssignModal(null)} title={`${t('students.assignClass')} — ${assignModal?.student.full_name ?? ''}`}>
+        {assignError && <div className="mb-4"><Alert type="error">{assignError}</Alert></div>}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            void submitAssign()
+          }}
+        >
+          <Field label={t('students.class')} required>
+            <Select
+              value={assignModal?.class_id ?? ''}
+              onChange={(e) => setAssignModal((m) => (m ? { ...m, class_id: e.target.value } : m))}
+              required
+            >
+              <option value="">{t('students.noClass')}</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="secondary" type="button" onClick={() => setAssignModal(null)}>
+              {t('common.cancel')}
+            </Button>
+            <Button type="submit" loading={assigning}>
               {t('common.save')}
             </Button>
           </div>

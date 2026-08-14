@@ -2,6 +2,7 @@ import { lazy, Suspense, type ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, roleOf, useAuth } from './context/AuthContext'
 import { Spinner } from './components/ui'
+import { ToastProvider } from './components/Toast'
 import AppLayout from './components/layout/AppLayout'
 import LoginPage from './pages/LoginPage'
 import SetupWizard from './pages/SetupWizard'
@@ -85,7 +86,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <AppRoutes />
+        <ToastProvider>
+          <AppRoutes />
+        </ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   )

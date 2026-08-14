@@ -164,6 +164,7 @@ export interface AttendanceRow {
   name: string
   student_number: string
   status: AttendanceStatus | null
+  record_id: number | null
 }
 
 export interface AttendanceSession {
@@ -257,7 +258,7 @@ export interface Invoice {
   discount_reason: string | null
   due_date: string | null
   status: 'unpaid' | 'partial' | 'paid' | 'overdue' | 'cancelled'
-  student?: { id: number; full_name: string }
+  student?: { id: number; full_name: string; student_number?: string | null }
   fee_type?: FeeType
   payments?: FeePayment[]
 }
@@ -275,7 +276,8 @@ export interface FeePayment {
   received_by: number
   paid_by_name: string | null
   paid_at: string
-  student?: { id: number; full_name: string }
+  student?: { id: number; full_name: string; student_number?: string | null }
+  studentFee?: { id: number; invoice_number: string }
   received_by_user?: User
 }
 

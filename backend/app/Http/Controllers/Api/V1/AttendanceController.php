@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\V1;
 use App\Enums\AttendanceStatus;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceCorrection;
+use App\Models\AttendanceRecord;
 use App\Models\AttendanceSession;
 use App\Models\SchoolClass;
 use App\Services\AttendanceService;
@@ -33,6 +34,13 @@ class AttendanceController extends Controller
     {
         Gate::authorize('take', AttendanceRecord::class);
 
+        $user = $request->user();
+
+        if ($user->hasRole('teacher') && ! $user->hasRole('admin')) {
+            $assigned = $class->classSubjects()->where('teacher_id', $user->id)->exists();
+            abort_unless($assigned, 403, 'You are not assigned to this class.');
+        }
+
         $data = $request->validate([
             'date' => ['required', 'date'],
             'period' => ['nullable', 'integer', 'min:0', 'max:20'],
@@ -40,6 +48,12 @@ class AttendanceController extends Controller
             'records' => ['required', 'array'],
             'records.*' => ['required', 'in:present,absent,late,excused'],
         ]);
+
+        if ($data['date'] < now()->toDateString() && ! $request->user()->hasPermissionTo('attendance.approve_corrections')) {
+            return response()->json([
+                'message' => 'Only school admins can edit past-dated attendance. Submit a correction request instead.',
+            ], 403);
+        }
 
         $session = $this->attendance->record(
             $class,
@@ -55,9 +69,19 @@ class AttendanceController extends Controller
 
     public function session(Request $request, AttendanceSession $session)
     {
-        Gate::authorize('view', $session->records->first() ?? new \App\Models\AttendanceRecord);
+        $user = $request->user();
 
-        $session->load(['records.student', 'class', 'subject', 'takenBy']);
+        $session->load(['class', 'subject', 'takenBy', 'records.student']);
+
+        $records = $session->records;
+
+        if ($user->hasRole('student') || $user->hasRole('parent')) {
+            $allowed = $user->linkedStudentIds();
+            $records = $records->whereIn('student_id', $allowed);
+            abort_if($records->isEmpty(), 403, 'You do not have access to this session.');
+        } else {
+            Gate::authorize('view', $records->first() ?? new \App\Models\AttendanceRecord);
+        }
 
         return response()->json([
             'data' => [
@@ -67,7 +91,7 @@ class AttendanceController extends Controller
                 'period' => $session->period,
                 'subject' => $session->subject?->name,
                 'taken_by' => $session->takenBy?->name,
-                'records' => $session->records->map(fn ($r) => [
+                'records' => $records->map(fn ($r) => [
                     'id' => $r->id,
                     'student_id' => $r->student_id,
                     'name' => $r->student?->fullName(),
@@ -88,6 +112,11 @@ class AttendanceController extends Controller
         ]);
 
         $this->attendance->requestCorrection($record, $data['new_status'], $data['reason'], $request->user());
+
+        $correction = $record->corrections()->latest()->first();
+        if ($correction) {
+            \App\Services\NotificationService::attendanceCorrectionRequested($correction);
+        }
 
         return response()->json(['message' => 'Correction request submitted for approval.']);
     }
@@ -114,6 +143,8 @@ class AttendanceController extends Controller
         ]);
 
         $this->attendance->approveCorrection($correction, $request->user(), $data['approve']);
+
+        \App\Services\NotificationService::attendanceCorrectionReviewed($correction, $data['approve']);
 
         return response()->json(['message' => $data['approve'] ? 'Correction approved.' : 'Correction rejected.']);
     }

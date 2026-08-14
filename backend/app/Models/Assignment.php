@@ -53,4 +53,22 @@ class Assignment extends Model
     {
         return $this->hasMany(AssignmentSubmission::class);
     }
+
+    public function deadline(): \Illuminate\Support\Carbon
+    {
+        $day = $this->due_date instanceof \Illuminate\Support\Carbon ? $this->due_date->copy() : \Illuminate\Support\Carbon::parse($this->due_date);
+
+        if ($this->due_time) {
+            $time = $this->due_time instanceof \Illuminate\Support\Carbon ? $this->due_time : \Illuminate\Support\Carbon::parse($this->due_time);
+
+            return $day->setTime((int) $time->format('H'), (int) $time->format('i'), (int) $time->format('s'));
+        }
+
+        return $day->endOfDay();
+    }
+
+    public function deadlinePassed(): bool
+    {
+        return now()->gt($this->deadline());
+    }
 }

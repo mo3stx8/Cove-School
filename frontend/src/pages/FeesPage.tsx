@@ -19,6 +19,7 @@ export default function FeesPage() {
   const [payments, setPayments] = useState<FeePayment[]>([])
   const [payPage, setPayPage] = useState(1)
   const [payLastPage, setPayLastPage] = useState(1)
+  const [paySearch, setPaySearch] = useState('')
 
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([])
   const [students, setStudents] = useState<Student[]>([])
@@ -32,7 +33,8 @@ export default function FeesPage() {
   const [error, setError] = useState('')
 
   const [feeTypeOpen, setFeeTypeOpen] = useState(false)
-  const [feeTypeForm, setFeeTypeForm] = useState({ name: '', code: '', amount: '', frequency: 'term', description: '' })
+  const [feeTypeEditing, setFeeTypeEditing] = useState<FeeType | null>(null)
+  const [feeTypeForm, setFeeTypeForm] = useState({ name: '', code: '', amount: '', frequency: 'term', description: '', is_active: true })
 
   const [payFor, setPayFor] = useState<Invoice | null>(null)
   const [payForm, setPayForm] = useState({ amount: '', payment_method: 'cash', reference: '', notes: '' })
@@ -64,7 +66,7 @@ export default function FeesPage() {
   const loadPayments = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await api.get<{ data: unknown }>('/payments', { params: { per_page: 25, page: payPage } })
+      const res = await api.get<{ data: unknown }>('/payments', { params: { per_page: 25, page: payPage, search: paySearch || undefined } })
       setPayments(unwrapList<FeePayment>(res.data))
       const meta = listMeta(res.data)
       setPayLastPage(meta.last_page)
@@ -73,7 +75,7 @@ export default function FeesPage() {
     } finally {
       setLoading(false)
     }
-  }, [payPage])
+  }, [payPage, paySearch])
 
   useEffect(() => {
     if (section === 'payments') void loadPayments()
@@ -127,19 +129,37 @@ export default function FeesPage() {
     }
   }
 
-  const createFeeType = async (e: React.FormEvent) => {
+  const openFeeType = (ft?: FeeType) => {
+    setFeeTypeEditing(ft ?? null)
+    setFeeTypeForm(
+      ft
+        ? { name: ft.name, code: ft.code ?? '', amount: String(ft.amount), frequency: ft.frequency, description: ft.description ?? '', is_active: Boolean(ft.is_active) }
+        : { name: '', code: '', amount: '', frequency: 'term', description: '', is_active: true },
+    )
+    setError('')
+    setFeeTypeOpen(true)
+  }
+
+  const saveFeeType = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     setError('')
     try {
-      await api.post('/fee-types', {
+      const payload = {
         name: feeTypeForm.name,
         code: feeTypeForm.code || undefined,
         amount: Number(feeTypeForm.amount),
         frequency: feeTypeForm.frequency,
         description: feeTypeForm.description || undefined,
-      })
+        is_active: feeTypeForm.is_active,
+      }
+      if (feeTypeEditing) {
+        await api.put(`/fee-types/${feeTypeEditing.id}`, payload)
+      } else {
+        await api.post('/fee-types', payload)
+      }
       setFeeTypeOpen(false)
+      setFeeTypeEditing(null)
       await load()
     } catch (err) {
       setError(errorMessage(err))
@@ -194,7 +214,7 @@ export default function FeesPage() {
           section === 'invoices' ? (
             <Button onClick={() => setInvoiceOpen(true)}>{t('fees.addInvoice')}</Button>
           ) : section === 'feeTypes' ? (
-            <Button onClick={() => setFeeTypeOpen(true)}>{t('fees.addFeeType')}</Button>
+            <Button onClick={() => openFeeType()}>{t('fees.addFeeType')}</Button>
           ) : undefined
         }
         tabs={{
@@ -224,7 +244,9 @@ export default function FeesPage() {
                 {invoices.map((inv) => (
                   <tr key={inv.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono text-xs font-medium text-gray-700">{inv.invoice_number}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{inv.student?.full_name ?? `#${inv.student_id}`}</td>
+                    <td className="px-4 py-3 font-mono text-xs font-medium text-gray-700">
+                      {inv.student?.student_number ?? inv.student?.full_name ?? '—'}
+                    </td>
                     <td className="px-4 py-3 text-gray-600">{inv.title}</td>
                     <td className="px-4 py-3 font-medium text-gray-800">
                       {inv.amount.toFixed(2)}
@@ -254,6 +276,17 @@ export default function FeesPage() {
           <EmptyState message={t('common.noData')} />
         ) : (
           <>
+            <Card className="mb-4 p-3">
+              <Input
+                placeholder={t('fees.searchPayments')}
+                value={paySearch}
+                onChange={(e) => {
+                  setPaySearch(e.target.value)
+                  setPayPage(1)
+                }}
+                className="max-w-md"
+              />
+            </Card>
             <Card>
               <Table
                 headers={[t('fees.receiptNumber'), t('fees.student'), t('fees.invoiceNumber'), t('fees.amount'), t('fees.method'), t('fees.paidAt'), t('common.actions')]}
@@ -261,8 +294,10 @@ export default function FeesPage() {
                 {payments.map((p) => (
                   <tr key={p.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono text-xs font-medium text-gray-700">{p.receipt_number}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{p.student?.full_name ?? `#${p.student_id}`}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-gray-600">#{p.student_fee_id}</td>
+                    <td className="px-4 py-3 font-mono text-xs font-medium text-gray-700">
+                      {p.student?.student_number ?? p.student?.full_name ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-600">{p.studentFee?.invoice_number ?? `#${p.student_fee_id}`}</td>
                     <td className="px-4 py-3 font-semibold text-emerald-700">{p.amount.toFixed(2)}</td>
                     <td className="px-4 py-3">
                       <Badge color="indigo">{p.payment_method}</Badge>
@@ -296,6 +331,11 @@ export default function FeesPage() {
               <p className="mt-2 text-lg font-semibold text-gray-900">{Number(ft.amount).toFixed(2)}</p>
               <Badge color="indigo">{ft.frequency}</Badge>
               {ft.description && <p className="mt-2 text-xs text-gray-500">{ft.description}</p>}
+              <div className="mt-4">
+                <Button variant="secondary" size="sm" onClick={() => openFeeType(ft)}>
+                  {t('common.edit')}
+                </Button>
+              </div>
             </Card>
           ))}
         </div>
@@ -375,9 +415,16 @@ export default function FeesPage() {
         </form>
       </Modal>
 
-      <Modal open={feeTypeOpen} onClose={() => setFeeTypeOpen(false)} title={t('fees.addFeeType')}>
+      <Modal
+        open={feeTypeOpen}
+        onClose={() => {
+          setFeeTypeOpen(false)
+          setFeeTypeEditing(null)
+        }}
+        title={feeTypeEditing ? t('fees.editFeeType') : t('fees.addFeeType')}
+      >
         {error && <div className="mb-4"><Alert type="error">{error}</Alert></div>}
-        <form onSubmit={(e) => void createFeeType(e)} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <form onSubmit={(e) => void saveFeeType(e)} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={t('fees.name')} required>
             <Input value={feeTypeForm.name} onChange={(e) => setFeeTypeForm({ ...feeTypeForm, name: e.target.value })} required />
           </Field>
@@ -399,6 +446,14 @@ export default function FeesPage() {
               <Input value={feeTypeForm.description} onChange={(e) => setFeeTypeForm({ ...feeTypeForm, description: e.target.value })} />
             </Field>
           </div>
+          <label className="col-span-full flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              checked={feeTypeForm.is_active}
+              onChange={(e) => setFeeTypeForm({ ...feeTypeForm, is_active: e.target.checked })}
+            />
+            {t('classes.active')}
+          </label>
           <div className="col-span-full mt-4 flex justify-end gap-2">
             <Button variant="secondary" type="button" onClick={() => setFeeTypeOpen(false)}>
               {t('common.cancel')}

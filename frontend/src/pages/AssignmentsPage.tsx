@@ -14,6 +14,20 @@ interface FormState {
   due_time: string
 }
 
+const formatDueTime = (iso: string): string => {
+  const time = iso.length > 8 ? iso.slice(11, 16) : iso.slice(0, 5)
+  const [hStr, mStr] = time.split(':')
+  const h = Number(hStr)
+  const suffix = h >= 12 ? 'PM' : 'AM'
+  const hour12 = ((h % 12) || 12).toString()
+  return `${hour12}:${mStr} ${suffix}`
+}
+
+const toTimeInput = (iso: string | null): string => {
+  if (!iso) return ''
+  return iso.length > 8 ? iso.slice(11, 16) : iso.slice(0, 5)
+}
+
 export default function AssignmentsPage() {
   const { t } = useTranslation()
   const [assignments, setAssignments] = useState<Assignment[]>([])
@@ -25,6 +39,7 @@ export default function AssignmentsPage() {
   const [loading, setLoading] = useState(true)
 
   const [createOpen, setCreateOpen] = useState(false)
+  const [editing, setEditing] = useState<Assignment | null>(null)
   const [form, setForm] = useState<FormState>({ title: '', description: '', class_id: '', subject_id: '', due_date: '', due_time: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -64,20 +79,47 @@ export default function AssignmentsPage() {
     })()
   }, [])
 
+  const openCreate = () => {
+    setEditing(null)
+    setForm({ title: '', description: '', class_id: '', subject_id: '', due_date: '', due_time: '' })
+    setError('')
+    setCreateOpen(true)
+  }
+
+  const openEdit = (a: Assignment) => {
+    setEditing(a)
+    setForm({
+      title: a.title,
+      description: a.description ?? '',
+      class_id: String(a.class_id),
+      subject_id: String(a.subject_id),
+      due_date: a.due_date.slice(0, 10),
+      due_time: toTimeInput(a.due_time),
+    })
+    setError('')
+    setCreateOpen(true)
+  }
+
   const createAssignment = async (e: React.FormEvent) => {
     e.preventDefault()
     setSaving(true)
     setError('')
     try {
-      await api.post('/assignments', {
+      const payload = {
         title: form.title,
         description: form.description || undefined,
         class_id: Number(form.class_id),
         subject_id: form.subject_id ? Number(form.subject_id) : undefined,
         due_date: form.due_date,
         due_time: form.due_time || undefined,
-      })
+      }
+      if (editing) {
+        await api.put(`/assignments/${editing.id}`, payload)
+      } else {
+        await api.post('/assignments', payload)
+      }
       setCreateOpen(false)
+      setEditing(null)
       await load()
     } catch (err) {
       setError(errorMessage(err))
@@ -136,7 +178,7 @@ export default function AssignmentsPage() {
 
   return (
     <div>
-      <PageHeader title={t('assignments.title')} actions={<Button onClick={() => setCreateOpen(true)}>{t('assignments.addAssignment')}</Button>} />
+      <PageHeader title={t('assignments.title')} actions={<Button onClick={openCreate}>{t('assignments.addAssignment')}</Button>} />
 
       {error && <div className="mb-4"><Alert type="error">{error}</Alert></div>}
 
@@ -156,8 +198,8 @@ export default function AssignmentsPage() {
                   <td className="px-4 py-3 text-gray-600">{a.class?.name ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-600">{a.subject?.name ?? '—'}</td>
                   <td className="px-4 py-3 text-gray-600">
-                    {a.due_date}
-                    {a.due_time ? ` ${a.due_time}` : ''}
+                    {a.due_date.slice(0, 10)}
+                    {a.due_time ? ` - ${formatDueTime(a.due_time)}` : ''}
                   </td>
                   <td className="px-4 py-3 text-gray-600">{a.submissions_count ?? 0}</td>
                   <td className="px-4 py-3">
@@ -165,6 +207,9 @@ export default function AssignmentsPage() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
+                      <Button variant="secondary" size="sm" onClick={() => openEdit(a)}>
+                        {t('common.edit')}
+                      </Button>
                       <Button variant="secondary" size="sm" onClick={() => void openSubmissions(a)}>
                         {t('assignments.submissions')}
                       </Button>
@@ -185,7 +230,15 @@ export default function AssignmentsPage() {
         </>
       )}
 
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} title={t('assignments.addAssignment')} wide>
+      <Modal
+        open={createOpen}
+        onClose={() => {
+          setCreateOpen(false)
+          setEditing(null)
+        }}
+        title={editing ? t('assignments.editAssignment') : t('assignments.addAssignment')}
+        wide
+      >
         {error && <div className="mb-4"><Alert type="error">{error}</Alert></div>}
         <form onSubmit={(e) => void createAssignment(e)} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="col-span-full">
@@ -208,8 +261,8 @@ export default function AssignmentsPage() {
               ))}
             </Select>
           </Field>
-          <Field label={t('assignments.subject')}>
-            <Select value={form.subject_id} onChange={(e) => setForm({ ...form, subject_id: e.target.value })}>
+          <Field label={t('assignments.subject')} required>
+            <Select value={form.subject_id} onChange={(e) => setForm({ ...form, subject_id: e.target.value })} required>
               <option value="">—</option>
               {subjects.map((s) => (
                 <option key={s.id} value={s.id}>
@@ -225,7 +278,7 @@ export default function AssignmentsPage() {
             <Input type="time" value={form.due_time} onChange={(e) => setForm({ ...form, due_time: e.target.value })} />
           </Field>
           <div className="col-span-full mt-4 flex justify-end gap-2">
-            <Button variant="secondary" type="button" onClick={() => setCreateOpen(false)}>
+            <Button variant="secondary" type="button" onClick={() => { setCreateOpen(false); setEditing(null) }}>
               {t('common.cancel')}
             </Button>
             <Button type="submit" loading={saving}>

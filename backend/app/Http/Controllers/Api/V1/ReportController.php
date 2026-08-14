@@ -44,7 +44,8 @@ class ReportController extends Controller
 
     public function attendance(Request $request)
     {
-        abort_unless($request->user()->hasPermissionTo('attendance.view'), 403);
+        $user = $request->user();
+        abort_unless($user->isStaff() && $user->hasPermissionTo('attendance.view'), 403);
 
         $data = $request->validate([
             'from' => ['required', 'date'],
@@ -89,7 +90,8 @@ class ReportController extends Controller
 
     public function academic(Request $request)
     {
-        abort_unless($request->user()->hasPermissionTo('reports.view'), 403);
+        $user = $request->user();
+        abort_unless($user->isStaff() && $user->hasPermissionTo('reports.view'), 403);
 
         $data = $request->validate([
             'exam_id' => ['sometimes', 'exists:exams,id'],
@@ -124,7 +126,8 @@ class ReportController extends Controller
 
     public function finance(Request $request)
     {
-        abort_unless($request->user()->hasPermissionTo('reports.view'), 403);
+        $user = $request->user();
+        abort_unless($user->isStaff() && $user->hasPermissionTo('reports.view'), 403);
 
         $school = app(TenantContext::class)->school();
 
@@ -154,11 +157,21 @@ class ReportController extends Controller
     {
         Gate::authorize('viewAny', \App\Models\Student::class);
 
+        $user = $request->user();
+        abort_unless($user->isStaff(), 403);
+
         $data = $request->validate([
             'type' => ['required', 'in:students,payments,attendance'],
         ]);
 
         $type = $data['type'];
+
+        $allowed = match ($type) {
+            'students' => ['students.view', 'reports.view'],
+            'payments' => ['payments.view', 'reports.view'],
+            'attendance' => ['attendance.view', 'reports.view'],
+        };
+        abort_unless($user->hasAnyPermission($allowed), 403);
 
         $filename = match ($type) {
             'students' => 'students.csv',

@@ -12,7 +12,7 @@ class AssignmentSubmission extends Model
 
     protected $fillable = [
         'assignment_id', 'student_id', 'text', 'file_name', 'file_path',
-        'mime_type', 'size', 'submitted_at', 'grade', 'feedback', 'status',
+        'mime_type', 'size', 'submitted_at', 'grade', 'feedback', 'excuse', 'status',
     ];
 
     protected function casts(): array

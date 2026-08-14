@@ -74,7 +74,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasRole = useCallback(
     (...roles: string[]) => {
       if (!user?.roles) return false
-      return roles.some((r) => user.roles!.some((role) => role.name === r))
+      return roles.some((r) =>
+        user.roles!.some((role) => role.name === r || (r === 'admin' && role.name === 'super_admin')),
+      )
     },
     [user],
   )

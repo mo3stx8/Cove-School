@@ -13,6 +13,7 @@ use App\Support\AuditLogger;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 class ExamController extends Controller
 {
@@ -22,15 +23,28 @@ class ExamController extends Controller
     {
         Gate::authorize('viewAny', Exam::class);
 
-        $exams = Exam::query()
+        $user = $request->user();
+
+        $query = Exam::query()
             ->with(['academicYear', 'term', 'examSubjects.subject', 'examSubjects.class'])
             ->when($request->input('academic_year_id'), fn ($q, $id) => $q->where('academic_year_id', $id))
             ->when($request->input('term_id'), fn ($q, $id) => $q->where('term_id', $id))
             ->when($request->input('search'), fn ($q, $s) => $q->where('name', 'ilike', "%{$s}%"))
-            ->latest()
-            ->paginate($request->integer('per_page', 25));
+            ->latest();
 
-        return response()->json(['data' => $exams]);
+        if ($user->hasRole('student') || $user->hasRole('parent')) {
+            $classIds = $user->hasRole('parent')
+                ? $user->guardians()->with('students:id,class_id')->get()
+                    ->flatMap(fn ($g) => $g->students->pluck('class_id'))
+                    ->filter()
+                    ->unique()
+                : collect([$user->student?->class_id])->filter();
+
+            abort_if($classIds->isEmpty(), 403, 'No class linked to your account.');
+            $query->whereHas('examSubjects', fn ($q) => $q->whereIn('class_id', $classIds));
+        }
+
+        return response()->json(['data' => $query->paginate($request->integer('per_page', 25))]);
     }
 
     public function store(Request $request)
@@ -42,14 +56,14 @@ class ExamController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'type' => ['sometimes', 'string', 'in:exam,quiz,midterm,final'],
-            'academic_year_id' => ['required', 'exists:academic_years,id'],
-            'term_id' => ['nullable', 'exists:terms,id'],
+            'academic_year_id' => ['required', Rule::exists('academic_years', 'id')->where('school_id', $school->id)],
+            'term_id' => ['nullable', Rule::exists('terms', 'id')->where('school_id', $school->id)],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
             'subjects' => ['sometimes', 'array'],
-            'subjects.*.class_id' => ['required', 'exists:classes,id'],
-            'subjects.*.subject_id' => ['required', 'exists:subjects,id'],
-            'subjects.*.teacher_id' => ['nullable', 'exists:users,id'],
+            'subjects.*.class_id' => ['required', Rule::exists('classes', 'id')->where('school_id', $school->id)],
+            'subjects.*.subject_id' => ['required', Rule::exists('subjects', 'id')->where('school_id', $school->id)],
+            'subjects.*.teacher_id' => ['nullable', Rule::exists('users', 'id')->where('school_id', $school->id)],
             'subjects.*.full_marks' => ['sometimes', 'numeric', 'min:1', 'max:1000'],
             'subjects.*.pass_marks' => ['sometimes', 'numeric', 'min:0', 'max:1000'],
         ]);
@@ -153,6 +167,8 @@ class ExamController extends Controller
         Gate::authorize('publish', $examSubject);
 
         $this->grades->transition($examSubject, GradeStatus::Published, $request->user());
+
+        \App\Services\NotificationService::gradesPublished($examSubject);
 
         return response()->json(['message' => 'Grades published.']);
     }

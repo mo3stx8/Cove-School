@@ -14,6 +14,12 @@ interface TermForm {
   end_date: string
   is_current: boolean
 }
+interface YearForm {
+  name: string
+  start_date: string
+  end_date: string
+  is_current: boolean
+}
 interface GradeForm {
   name: string
   level: string
@@ -72,6 +78,7 @@ export default function AcademicPage() {
   const openAdd = () => {
     setEditing(null)
     setError('')
+    if (section === 'years') setForm({ name: '', start_date: '', end_date: '', is_current: false })
     if (section === 'grades') setForm({ name: '', level: '', is_active: true })
     if (section === 'subjects') setForm({ name: '', code: '', description: '' })
     setModalOpen(true)
@@ -80,6 +87,10 @@ export default function AcademicPage() {
   const openEdit = (item: unknown) => {
     setEditing(item)
     setError('')
+    if (section === 'years') {
+      const y = item as AcademicYear
+      setForm({ name: y.name, start_date: y.start_date.slice(0, 10), end_date: y.end_date.slice(0, 10), is_current: Boolean(y.is_current) })
+    }
     if (section === 'grades') {
       const g = item as Grade
       setForm({ name: g.name, level: String(g.level), is_active: Boolean(g.is_active) })
@@ -122,6 +133,11 @@ export default function AcademicPage() {
           is_current: f.is_current,
         })
         setTermYear(null)
+      } else if (section === 'years') {
+        const y = form as unknown as YearForm
+        const payload = { name: y.name, start_date: y.start_date, end_date: y.end_date, is_current: y.is_current }
+        if (editing) await api.put(`/academic-years/${(editing as AcademicYear).id}`, payload)
+        else await api.post('/academic-years', payload)
       } else if (section === 'grades') {
         const g = form as unknown as GradeForm
         const payload: Record<string, string | number | boolean> = { name: g.name, is_active: g.is_active }
@@ -149,7 +165,7 @@ export default function AcademicPage() {
     <div>
       <PageHeader
         title={t('academic.title')}
-        actions={section !== 'years' ? <Button onClick={openAdd}>{t('common.add')}</Button> : undefined}
+        actions={<Button onClick={openAdd}>{t('common.add')}</Button>}
         tabs={{
           value: section,
           onChange: (v) => setSection(v as Section),
@@ -173,7 +189,7 @@ export default function AcademicPage() {
                     {year.is_current && <Badge color="green">{t('academic.current')}</Badge>}
                   </div>
                   <p className="mt-1 text-xs text-gray-500">
-                    {year.start_date} → {year.end_date}
+                    {year.start_date.slice(0, 10)} → {year.end_date.slice(0, 10)}
                   </p>
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {(year.terms ?? []).map((term: Term) => (
@@ -183,6 +199,9 @@ export default function AcademicPage() {
                     ))}
                   </div>
                   <div className="mt-4 flex gap-2">
+                    <Button variant="secondary" size="sm" onClick={() => openEdit(year)}>
+                      {t('common.edit')}
+                    </Button>
                     <Button variant="secondary" size="sm" onClick={() => openTerm(year)}>
                       {t('academic.addTerm')}
                     </Button>
@@ -270,6 +289,29 @@ export default function AcademicPage() {
               <Field label={t('academic.termNumber')} required>
                 <Input type="number" min={1} value={String(form.term_number ?? '')} onChange={(e) => setForm({ ...form, term_number: e.target.value })} required />
               </Field>
+              <Field label={t('academic.startDate')} required>
+                <Input type="date" value={String(form.start_date ?? '')} onChange={(e) => setForm({ ...form, start_date: e.target.value })} required />
+              </Field>
+              <Field label={t('academic.endDate')} required>
+                <Input type="date" value={String(form.end_date ?? '')} onChange={(e) => setForm({ ...form, end_date: e.target.value })} required />
+              </Field>
+              <label className="col-span-full flex items-center gap-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.is_current)}
+                  onChange={(e) => setForm({ ...form, is_current: e.target.checked })}
+                />
+                {t('academic.current')}
+              </label>
+            </>
+          )}
+
+          {!termYear && section === 'years' && (
+            <>
+              <Field label={t('academic.yearName')} required>
+                <Input value={String(form.name ?? '')} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="2027/2028" />
+              </Field>
+              <div className="col-span-full" />
               <Field label={t('academic.startDate')} required>
                 <Input type="date" value={String(form.start_date ?? '')} onChange={(e) => setForm({ ...form, start_date: e.target.value })} required />
               </Field>

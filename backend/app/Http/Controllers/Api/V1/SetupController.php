@@ -96,6 +96,8 @@ class SetupController extends Controller
 
     public function updateSchool(Request $request)
     {
+        abort_unless($request->user()->hasPermissionTo('school.update'), 403);
+
         $school = app(TenantContext::class)->school();
 
         $data = $request->validate([
@@ -119,6 +121,8 @@ class SetupController extends Controller
 
     public function createAcademicYear(Request $request)
     {
+        abort_unless($request->user()->hasPermissionTo('settings.manage'), 403);
+
         $school = app(TenantContext::class)->school();
 
         $data = $request->validate([

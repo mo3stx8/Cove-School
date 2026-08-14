@@ -42,7 +42,10 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
 
         // Academic
         Route::get('academic-years', [AcademicController::class, 'academicYears']);
+        Route::post('academic-years', [AcademicController::class, 'storeAcademicYear']);
+        Route::put('academic-years/{academicYear}', [AcademicController::class, 'updateAcademicYear']);
         Route::post('academic-years/{academicYear}/set-current', [AcademicController::class, 'setCurrentAcademicYear']);
+        Route::get('academic-years/{academicYear}/terms', [AcademicController::class, 'terms']);
         Route::post('academic-years/{academicYear}/terms', [AcademicController::class, 'storeTerm']);
         Route::put('terms/{term}', [AcademicController::class, 'updateTerm']);
 
@@ -64,6 +67,7 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         Route::put('classes/{class}', [SchoolClassController::class, 'update']);
         Route::delete('classes/{class}', [SchoolClassController::class, 'destroy']);
         Route::post('classes/{class}/subjects', [SchoolClassController::class, 'assignSubjects']);
+        Route::post('classes/{class}/assign-students', [SchoolClassController::class, 'assignStudents']);
 
         // Students
         Route::get('students', [StudentController::class, 'index']);
@@ -80,6 +84,7 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         Route::get('teachers/{teacher}', [TeacherController::class, 'show']);
         Route::put('teachers/{teacher}', [TeacherController::class, 'update']);
         Route::post('teachers/{teacher}/archive', [TeacherController::class, 'archive']);
+        Route::post('teachers/{teacher}/restore', [TeacherController::class, 'restore']);
 
         // Timetables
         Route::get('timetables', [TimetableController::class, 'index']);
@@ -114,6 +119,7 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         Route::get('assignments', [AssignmentController::class, 'index']);
         Route::post('assignments', [AssignmentController::class, 'store']);
         Route::get('assignments/{assignment}', [AssignmentController::class, 'show']);
+        Route::put('assignments/{assignment}', [AssignmentController::class, 'update']);
         Route::post('assignments/{assignment}/submit', [AssignmentController::class, 'submit']);
         Route::post('assignments/{assignment}/submissions/{submission}/grade', [AssignmentController::class, 'grade']);
         Route::delete('assignments/{assignment}', [AssignmentController::class, 'destroy']);
@@ -139,6 +145,7 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         // Announcements
         Route::get('announcements', [AnnouncementController::class, 'index']);
         Route::post('announcements', [AnnouncementController::class, 'store']);
+        Route::put('announcements/{announcement}', [AnnouncementController::class, 'update']);
         Route::delete('announcements/{announcement}', [AnnouncementController::class, 'destroy']);
 
         // Notifications

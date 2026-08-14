@@ -88,6 +88,7 @@ class AttendanceService
                 'name' => $student->fullName(),
                 'student_number' => $student->student_number,
                 'status' => $record?->status->value ?? null,
+                'record_id' => $record?->id ?? null,
             ];
         });
     }

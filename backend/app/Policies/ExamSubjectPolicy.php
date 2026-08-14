@@ -9,6 +9,10 @@ class ExamSubjectPolicy
 {
     public function view(User $user, ?ExamSubject $examSubject = null): bool
     {
+        if (! $user->isStaff()) {
+            return false;
+        }
+
         if ($examSubject && $examSubject->teacher_id === $user->id) {
             return true;
         }

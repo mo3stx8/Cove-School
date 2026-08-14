@@ -67,7 +67,31 @@ class AnnouncementController extends Controller
 
         AuditLogger::log('announcement.created', $announcement);
 
+        \App\Services\NotificationService::announcementCreated($announcement, $school);
+
         return response()->json(['data' => $announcement], 201);
+    }
+
+    public function update(Request $request, Announcement $announcement)
+    {
+        Gate::authorize('create', Announcement::class);
+
+        $data = $request->validate([
+            'title' => ['sometimes', 'string', 'max:255'],
+            'body' => ['sometimes', 'string'],
+            'audience' => ['sometimes', 'in:everyone,teachers,students,parents,class'],
+            'class_id' => ['nullable', 'required_if:audience,class', 'exists:classes,id'],
+            'expires_at' => ['nullable', 'date'],
+        ]);
+
+        if (array_key_exists('audience', $data) && $data['audience'] !== 'class') {
+            $data['class_id'] = null;
+        }
+
+        $announcement->update($data);
+        AuditLogger::log('announcement.updated', $announcement);
+
+        return response()->json(['data' => $announcement]);
     }
 
     public function destroy(Request $request, Announcement $announcement)

@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Support\Concerns\BelongsToSchool;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AssignmentAttachment extends Model
 {
-    protected $fillable = ['assignment_id', 'name', 'path', 'mime_type', 'size'];
+    use BelongsToSchool;
+
+    protected $fillable = ['school_id', 'assignment_id', 'name', 'path', 'mime_type', 'size'];
 
     public function assignment(): BelongsTo
     {
