@@ -11,7 +11,7 @@ export default function LoginPage() {
   const { t } = useTranslation()
   const { login } = useAuth()
   const navigate = useNavigate()
-  const [email, setEmail] = useState('')
+  const [systemEmail, setSystemEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -21,7 +21,7 @@ export default function LoginPage() {
     setLoading(true)
     setError('')
     try {
-      await login(email, password)
+      await login(systemEmail, password)
       navigate('/dashboard')
     } catch (err) {
       setError(errorMessage(err))
@@ -44,12 +44,13 @@ export default function LoginPage() {
           <h2 className="mb-6 text-lg font-semibold text-gray-900">{t('auth.login')}</h2>
           {error && <div className="mb-4"><Alert type="error">{error}</Alert></div>}
           <form onSubmit={(e) => void submit(e)} className="space-y-4">
-            <Field label={t('auth.email')} required>
+            <Field label={t('auth.systemEmail')} required>
               <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
+                type="text"
+                value={systemEmail}
+                onChange={(e) => setSystemEmail(e.target.value)}
+                autoComplete="username"
+                placeholder={t('auth.systemEmailHint')}
                 required
               />
             </Field>

@@ -14,8 +14,8 @@ class Guardian extends Model
     protected $table = 'parents';
 
     protected $fillable = [
-        'school_id', 'user_id', 'father_name', 'mother_name', 'guardian_name',
-        'relationship', 'phone', 'email', 'address', 'occupation',
+        'school_id', 'user_id', 'name', 'relationship', 'phone',
+        'email', 'system_email', 'address', 'occupation',
     ];
 
     public function school(): BelongsTo
@@ -36,10 +36,9 @@ class Guardian extends Model
 
     public function displayName(): string
     {
-        return $this->guardian_name
-            ?? $this->father_name
-            ?? $this->mother_name
+        return $this->name
             ?? $this->email
+            ?? $this->system_email
             ?? 'Guardian';
     }
 }

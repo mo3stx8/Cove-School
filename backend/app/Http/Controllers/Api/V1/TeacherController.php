@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\TeacherResource;
 use App\Models\Teacher;
 use App\Services\TeacherService;
+use App\Support\AuditLogger;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -34,7 +35,7 @@ class TeacherController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,system_email'],
             'phone' => ['nullable', 'string', 'max:32'],
             'employee_id' => ['nullable', 'string', 'max:64'],
             'qualification' => ['nullable', 'string', 'max:255'],
@@ -75,7 +76,7 @@ class TeacherController extends Controller
             $teacher->user->update(['name' => $data['name']]);
         }
 
-        \App\Support\AuditLogger::log('teacher.updated', $teacher);
+        AuditLogger::log('teacher.updated', $teacher);
 
         return new TeacherResource($teacher->load('user'));
     }
@@ -96,7 +97,7 @@ class TeacherController extends Controller
         Gate::authorize('update', $teacher);
 
         $teacher->update(['status' => 'active', 'leaving_date' => null]);
-        \App\Support\AuditLogger::log('teacher.restored', $teacher);
+        AuditLogger::log('teacher.restored', $teacher);
 
         return new TeacherResource($teacher->load('user'));
     }

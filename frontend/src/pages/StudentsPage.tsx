@@ -4,6 +4,7 @@ import { api, errorMessage, listMeta, unwrapList } from '../lib/api'
 import type { SchoolClass, Student } from '../lib/types'
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Pagination, Spinner, Table } from '../components/ui'
 import { Field, Input, Modal, Select } from '../components/form'
+import ParentSection, { emptyParentForm, type ParentForm } from '../components/ParentSection'
 import { useToast } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
 
@@ -12,6 +13,7 @@ interface StudentForm {
   middle_name: string
   last_name: string
   email: string
+  system_email: string
   date_of_birth: string
   gender: string
   nationality: string
@@ -21,10 +23,6 @@ interface StudentForm {
   emergency_contact_name: string
   emergency_contact_relationship: string
   emergency_contact_phone: string
-  guardian_name: string
-  guardian_phone: string
-  guardian_email: string
-  guardian_relationship: string
 }
 
 const emptyForm: StudentForm = {
@@ -32,6 +30,7 @@ const emptyForm: StudentForm = {
   middle_name: '',
   last_name: '',
   email: '',
+  system_email: '',
   date_of_birth: '',
   gender: '',
   nationality: '',
@@ -41,10 +40,20 @@ const emptyForm: StudentForm = {
   emergency_contact_name: '',
   emergency_contact_relationship: '',
   emergency_contact_phone: '',
-  guardian_name: '',
-  guardian_phone: '',
-  guardian_email: '',
-  guardian_relationship: '',
+}
+
+const buildParentPayload = (p: ParentForm): Record<string, unknown> | undefined => {
+  if (p.linked_guardian_id) {
+    return { linked_guardian_id: p.linked_guardian_id }
+  }
+  const hasData = p.name.trim() || p.phone.trim() || p.email.trim() || p.system_email.trim()
+  if (!hasData) return undefined
+  return {
+    name: p.name.trim() || undefined,
+    phone: p.phone.trim() || undefined,
+    email: p.email.trim() || undefined,
+    system_email: p.system_email.trim() || undefined,
+  }
 }
 
 export default function StudentsPage() {
@@ -60,6 +69,8 @@ export default function StudentsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<Student | null>(null)
   const [form, setForm] = useState<StudentForm>(emptyForm)
+  const [father, setFather] = useState<ParentForm>(emptyParentForm())
+  const [mother, setMother] = useState<ParentForm>(emptyParentForm())
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [search, setSearch] = useState('')
@@ -99,6 +110,8 @@ export default function StudentsPage() {
   const openAdd = () => {
     setEditing(null)
     setForm(emptyForm)
+    setFather(emptyParentForm())
+    setMother(emptyParentForm())
     setError('')
     setModalOpen(true)
   }
@@ -110,6 +123,7 @@ export default function StudentsPage() {
       middle_name: s.middle_name ?? '',
       last_name: s.last_name,
       email: s.user?.email ?? '',
+      system_email: s.user?.system_email ?? '',
       date_of_birth: s.date_of_birth ?? '',
       gender: s.gender ?? '',
       nationality: s.nationality ?? '',
@@ -119,11 +133,9 @@ export default function StudentsPage() {
       emergency_contact_name: s.emergency_contact_name ?? '',
       emergency_contact_relationship: s.emergency_contact_relationship ?? '',
       emergency_contact_phone: s.emergency_contact_phone ?? '',
-      guardian_name: s.guardians?.[0]?.name ?? '',
-      guardian_phone: s.guardians?.[0]?.phone ?? '',
-      guardian_email: s.guardians?.[0]?.email ?? '',
-      guardian_relationship: s.guardians?.[0]?.relationship ?? '',
     })
+    setFather(emptyParentForm())
+    setMother(emptyParentForm())
     setError('')
     setModalOpen(true)
   }
@@ -137,6 +149,7 @@ export default function StudentsPage() {
       middle_name: form.middle_name || undefined,
       last_name: form.last_name,
       email: form.email || undefined,
+      system_email: form.system_email || undefined,
       date_of_birth: form.date_of_birth || undefined,
       gender: form.gender || undefined,
       nationality: form.nationality || undefined,
@@ -145,12 +158,8 @@ export default function StudentsPage() {
       emergency_contact_name: form.emergency_contact_name || undefined,
       emergency_contact_relationship: form.emergency_contact_relationship || undefined,
       emergency_contact_phone: form.emergency_contact_phone || undefined,
-      guardian: {
-        guardian_name: form.guardian_name || undefined,
-        phone: form.guardian_phone || undefined,
-        email: form.guardian_email || undefined,
-        relationship: form.guardian_relationship || undefined,
-      },
+      father: buildParentPayload(father),
+      mother: buildParentPayload(mother),
     }
     try {
       if (editing) {
@@ -306,8 +315,11 @@ export default function StudentsPage() {
           <Field label={t('students.middleName')}>
             <Input value={form.middle_name} onChange={(e) => setForm({ ...form, middle_name: e.target.value })} />
           </Field>
-          <Field label={t('students.email')}>
-            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <Field label={t('students.systemEmail')}>
+            <Input type="text" value={form.system_email} onChange={(e) => setForm({ ...form, system_email: e.target.value })} placeholder={t('students.systemEmailHint')} />
+          </Field>
+          <Field label={t('students.realEmail')}>
+            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={t('students.realEmailHint')} />
           </Field>
           <Field label={t('students.dob')}>
             <Input type="date" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} />
@@ -347,20 +359,13 @@ export default function StudentsPage() {
           {!editing && (
             <>
               <div className="col-span-full border-t border-gray-100 pt-4">
-                <h4 className="mb-3 text-sm font-semibold text-gray-600">{t('students.guardian')}</h4>
+                <h4 className="mb-3 text-sm font-semibold text-gray-600">{t('students.fatherInfo')}</h4>
               </div>
-              <Field label={t('students.guardianName')}>
-                <Input value={form.guardian_name} onChange={(e) => setForm({ ...form, guardian_name: e.target.value })} />
-              </Field>
-              <Field label={t('students.guardianRelationship')}>
-                <Input value={form.guardian_relationship} onChange={(e) => setForm({ ...form, guardian_relationship: e.target.value })} />
-              </Field>
-              <Field label={t('students.guardianPhone')}>
-                <Input value={form.guardian_phone} onChange={(e) => setForm({ ...form, guardian_phone: e.target.value })} />
-              </Field>
-              <Field label={t('students.guardianEmail')}>
-                <Input type="email" value={form.guardian_email} onChange={(e) => setForm({ ...form, guardian_email: e.target.value })} />
-              </Field>
+              <ParentSection title={t('students.fatherInfo')} value={father} onChange={setFather} />
+              <div className="col-span-full border-t border-gray-100 pt-4">
+                <h4 className="mb-3 text-sm font-semibold text-gray-600">{t('students.motherInfo')}</h4>
+              </div>
+              <ParentSection title={t('students.motherInfo')} value={mother} onChange={setMother} />
             </>
           )}
           <div className="col-span-full mt-4 flex justify-end gap-2">

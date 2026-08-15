@@ -22,7 +22,7 @@ class SetupController extends Controller
             'school_name' => ['required', 'string', 'max:255'],
             'slug' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9\-]+$/', Rule::unique('schools', 'slug')],
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
+            'email' => ['required', 'email', 'max:255', Rule::unique('users', 'system_email')],
             'password' => ['required', 'string', 'min:10', 'max:64', 'confirmed'],
             'country' => ['sometimes', 'nullable', 'string', 'max:100'],
             'currency' => ['sometimes', 'nullable', 'string', 'size:3'],
@@ -43,6 +43,7 @@ class SetupController extends Controller
             $user = User::create([
                 'school_id' => $school->id,
                 'name' => $data['name'],
+                'system_email' => $data['email'],
                 'email' => $data['email'],
                 'password' => Hash::make($data['password']),
                 'locale' => 'en',

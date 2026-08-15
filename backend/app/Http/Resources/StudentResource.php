@@ -35,6 +35,7 @@ class StudentResource extends JsonResource
             'user' => $this->whenLoaded('user', fn () => [
                 'id' => $this->user->id,
                 'name' => $this->user->name,
+                'system_email' => $this->user->system_email,
                 'email' => $this->user->email,
                 'phone' => $this->user->phone,
             ]),
@@ -43,7 +44,9 @@ class StudentResource extends JsonResource
                 'name' => $g->displayName(),
                 'phone' => $g->phone,
                 'email' => $g->email,
+                'system_email' => $g->system_email,
                 'relationship' => $g->pivot->relationship,
+                'is_primary' => (bool) $g->pivot->is_primary,
             ])),
             'attendance_rate' => $this->whenAppended('attendance_rate'),
             'created_at' => $this->created_at?->toISOString(),

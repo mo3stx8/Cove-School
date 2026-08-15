@@ -3,10 +3,10 @@
 namespace App\Models;
 
 use App\Enums\UserStatus;
-use App\Support\Concerns\BelongsToSchool;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -14,11 +14,12 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+    use HasApiTokens, HasFactory, HasRoles, Notifiable;
 
     protected $fillable = [
-        'school_id', 'name', 'email', 'phone', 'password', 'locale', 'timezone',
-        'avatar', 'status', 'must_change_password', 'last_login_at', 'last_login_ip',
+        'school_id', 'name', 'system_email', 'email', 'phone', 'password', 'locale', 'timezone',
+        'avatar', 'status', 'must_change_password', 'activation_token',
+        'activation_token_expires_at', 'activated_at', 'last_login_at', 'last_login_ip',
     ];
 
     protected $hidden = ['password', 'remember_token'];
@@ -28,6 +29,8 @@ class User extends Authenticatable
         return [
             'password' => 'hashed',
             'email_verified_at' => 'datetime',
+            'activation_token_expires_at' => 'datetime',
+            'activated_at' => 'datetime',
             'last_login_at' => 'datetime',
             'must_change_password' => 'boolean',
             'status' => UserStatus::class,
@@ -39,12 +42,12 @@ class User extends Authenticatable
         return $this->belongsTo(School::class);
     }
 
-    public function student(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function student(): HasOne
     {
         return $this->hasOne(Student::class);
     }
 
-    public function teacher(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function teacher(): HasOne
     {
         return $this->hasOne(Teacher::class);
     }

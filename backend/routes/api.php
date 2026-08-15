@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\ExamController;
 use App\Http\Controllers\Api\V1\FeeController;
+use App\Http\Controllers\Api\V1\GuardianController;
 use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\SchoolClassController;
@@ -21,6 +22,7 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
 
     // Public
     Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
+    Route::post('auth/activate', [AuthController::class, 'activate'])->middleware('throttle:password');
     Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:password');
     Route::post('auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:password');
 
@@ -33,6 +35,7 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         Route::get('auth/me', [AuthController::class, 'me']);
         Route::put('auth/profile', [AuthController::class, 'updateProfile']);
         Route::put('auth/password', [AuthController::class, 'changePassword']);
+        Route::post('auth/activation/resend', [AuthController::class, 'resendActivation']);
 
         Route::get('setup/progress', [SetupController::class, 'progress']);
         Route::put('setup/school', [SetupController::class, 'updateSchool']);
@@ -68,6 +71,9 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         Route::delete('classes/{class}', [SchoolClassController::class, 'destroy']);
         Route::post('classes/{class}/subjects', [SchoolClassController::class, 'assignSubjects']);
         Route::post('classes/{class}/assign-students', [SchoolClassController::class, 'assignStudents']);
+
+        // Guardians
+        Route::get('guardians/check', [GuardianController::class, 'check']);
 
         // Students
         Route::get('students', [StudentController::class, 'index']);

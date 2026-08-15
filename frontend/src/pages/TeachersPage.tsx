@@ -62,7 +62,7 @@ export default function TeachersPage() {
     setEditing(teacher)
     setForm({
       name: teacher.user?.name ?? '',
-      email: teacher.user?.email ?? '',
+      email: teacher.user?.system_email ?? teacher.user?.email ?? '',
       phone: teacher.user?.phone ?? '',
       qualification: teacher.qualification ?? '',
       joining_date: teacher.joining_date ?? '',
@@ -156,7 +156,7 @@ export default function TeachersPage() {
             {teachers.map((teacher) => (
               <tr key={teacher.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-900">{teacher.user?.name ?? '—'}</td>
-                <td className="px-4 py-3 text-gray-600">{teacher.user?.email ?? '—'}</td>
+                <td className="px-4 py-3 text-gray-600">{teacher.user?.system_email ?? '—'}</td>
                 <td className="px-4 py-3 text-gray-600">{teacher.user?.phone ?? '—'}</td>
                 <td className="px-4 py-3 font-mono text-xs text-gray-500">{teacher.employee_id ?? '—'}</td>
                 <td className="px-4 py-3 text-gray-600">{teacher.qualification ?? '—'}</td>

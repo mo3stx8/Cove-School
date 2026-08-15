@@ -4,12 +4,13 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Enums\UserStatus;
 use App\Http\Controllers\Controller;
-use App\Models\School;
 use App\Models\User;
+use App\Services\ActivationService;
 use App\Support\AuditLogger;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 
@@ -18,11 +19,22 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $credentials = $request->validate([
-            'email' => ['required', 'email'],
+            'system_email' => ['nullable', 'string', 'max:255'],
+            'email' => ['nullable', 'string', 'max:255'],
             'password' => ['required', 'string'],
             'remember' => ['sometimes', 'boolean'],
             'device_name' => ['sometimes', 'nullable', 'string'],
         ]);
+
+        // "system_email" is the login ID. "email" is accepted as an alias
+        // so existing clients keep working during the transition.
+        $login = $credentials['system_email'] ?? $credentials['email'] ?? null;
+
+        if ($login === null || $login === '') {
+            throw ValidationException::withMessages([
+                'system_email' => 'The system email field is required.',
+            ]);
+        }
 
         $key = 'login:'.$request->ip();
 
@@ -30,17 +42,17 @@ class AuthController extends Controller
             $seconds = RateLimiter::availableIn($key);
 
             throw ValidationException::withMessages([
-                'email' => "Too many login attempts. Try again in {$seconds} seconds.",
+                'system_email' => "Too many login attempts. Try again in {$seconds} seconds.",
             ]);
         }
 
         RateLimiter::hit($key, 60);
 
-        if (! Auth::attempt(['email' => $credentials['email'], 'password' => $credentials['password']], $credentials['remember'] ?? false)) {
-            AuditLogger::log('auth.login_failed', null, null, ['email' => $credentials['email']]);
+        if (! Auth::attempt(['system_email' => $login, 'password' => $credentials['password']], $credentials['remember'] ?? false)) {
+            AuditLogger::log('auth.login_failed', null, null, ['system_email' => $login]);
 
             throw ValidationException::withMessages([
-                'email' => 'The provided credentials are incorrect.',
+                'system_email' => 'The provided credentials are incorrect.',
             ]);
         }
 
@@ -52,7 +64,7 @@ class AuthController extends Controller
             $request->session()->regenerateToken();
 
             throw ValidationException::withMessages([
-                'email' => 'Your account is suspended. Contact your administrator.',
+                'system_email' => 'Your account is suspended. Contact your administrator.',
             ]);
         }
 
@@ -76,6 +88,61 @@ class AuthController extends Controller
         return response()->json([
             'user' => $user->load('school'),
             'token' => $token,
+        ]);
+    }
+
+    /**
+     * Activates an invited account using the link emailed to the user.
+     *
+     * Body: token (from the link) + email (the account's system email from the link).
+     */
+    public function activate(Request $request, ActivationService $activation)
+    {
+        $data = $request->validate([
+            'token' => ['required', 'string'],
+            'email' => ['required', 'string', 'max:255'],
+            'password' => ['required', 'string', 'min:10', 'max:64', 'confirmed'],
+        ]);
+
+        $user = $activation->activate($data['email'], $data['token'], $data['password']);
+
+        return response()->json([
+            'message' => 'Account activated. You can now sign in.',
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'system_email' => $user->system_email,
+            ],
+        ]);
+    }
+
+    /**
+     * Admin: re-issues the activation link for an account that never activated.
+     */
+    public function resendActivation(Request $request, ActivationService $activation)
+    {
+        abort_unless($request->user()->hasPermissionTo('users.update'), 403);
+
+        $data = $request->validate([
+            'system_email' => ['required', 'string', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255'],
+        ]);
+
+        $user = User::query()
+            ->where('system_email', $data['system_email'])
+            ->where(function ($q) {
+                $q->where('status', UserStatus::Invited)
+                    ->orWhereNull('activated_at');
+            })
+            ->firstOrFail();
+
+        $url = $activation->resend($user, $data['email'] ?? null);
+
+        AuditLogger::log('auth.activation_resent', $user);
+
+        return response()->json([
+            'message' => 'Activation link resent.',
+            'activation_url' => $url,
         ]);
     }
 
@@ -162,7 +229,7 @@ class AuthController extends Controller
 
         RateLimiter::hit($key, 600);
 
-        \Illuminate\Support\Facades\Password::sendResetLink($data);
+        Password::sendResetLink($data);
 
         return response()->json([
             'message' => 'If an account exists for that email, a password reset link has been sent.',
@@ -177,7 +244,7 @@ class AuthController extends Controller
             'password' => ['required', 'string', 'min:10', 'max:64', 'confirmed'],
         ]);
 
-        $status = \Illuminate\Support\Facades\Password::reset(
+        $status = Password::reset(
             $data,
             function ($user, $password) {
                 $user->forceFill(['password' => Hash::make($password)])->save();
@@ -185,7 +252,7 @@ class AuthController extends Controller
             }
         );
 
-        if ($status !== \Illuminate\Support\Facades\Password::PASSWORD_RESET) {
+        if ($status !== Password::PASSWORD_RESET) {
             throw ValidationException::withMessages(['email' => __($status)]);
         }
 

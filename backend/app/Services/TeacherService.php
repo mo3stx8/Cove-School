@@ -2,33 +2,39 @@
 
 namespace App\Services;
 
+use App\Enums\UserStatus;
 use App\Models\School;
 use App\Models\Teacher;
 use App\Models\User;
 use App\Support\AuditLogger;
 use App\Support\NumberGenerator;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Spatie\Permission\PermissionRegistrar;
 
 class TeacherService
 {
+    public function __construct(private readonly ActivationService $activation) {}
+
     public function create(array $data, School $school, User $actor): Teacher
     {
         return DB::transaction(function () use ($data, $school) {
             $user = User::create([
                 'school_id' => $school->id,
                 'name' => $data['name'],
+                'system_email' => $data['email'],
                 'email' => $data['email'],
                 'phone' => $data['phone'] ?? null,
-                'password' => Hash::make($data['password'] ?? str()->random(12)),
+                'password' => Str::random(32),
                 'locale' => 'en',
-                'status' => 'active',
+                'status' => UserStatus::Invited,
             ]);
 
             $registrar = app(PermissionRegistrar::class);
             $registrar->setPermissionsTeamId($school->id);
             $user->assignRole('teacher');
+
+            $this->activation->invite($user, $data['email']);
 
             $teacher = $school->teachers()->create([
                 'user_id' => $user->id,

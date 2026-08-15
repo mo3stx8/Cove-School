@@ -6,6 +6,7 @@ import { ToastProvider } from './components/Toast'
 import AppLayout from './components/layout/AppLayout'
 import LoginPage from './pages/LoginPage'
 import SetupWizard from './pages/SetupWizard'
+import ActivatePage from './pages/ActivatePage'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const StudentsPage = lazy(() => import('./pages/StudentsPage'))
@@ -55,6 +56,7 @@ function AppRoutes() {
         <Route path="/" element={<RootRedirect />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/setup" element={<SetupWizard />} />
+        <Route path="/activate" element={<ActivatePage />} />
         <Route
           element={
             <Protected>

@@ -8,9 +8,11 @@ use App\Http\Resources\StudentResource;
 use App\Models\SchoolClass;
 use App\Models\Student;
 use App\Services\StudentService;
+use App\Support\AuditLogger;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 class StudentController extends Controller
 {
@@ -44,6 +46,7 @@ class StudentController extends Controller
             'first_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
+            'system_email' => ['nullable', 'string', 'max:255', Rule::unique('users', 'system_email')],
             'email' => ['nullable', 'email', 'max:255'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'gender' => ['nullable', 'in:male,female'],
@@ -55,10 +58,26 @@ class StudentController extends Controller
             'emergency_contact_relationship' => ['nullable', 'string', 'max:64'],
             'emergency_contact_phone' => ['nullable', 'string', 'max:32'],
             'medical_notes' => ['nullable', 'string'],
+            'father' => ['nullable', 'array'],
+            'father.name' => ['nullable', 'string', 'max:255'],
+            'father.phone' => ['nullable', 'string', 'max:32'],
+            'father.email' => ['nullable', 'email', 'max:255'],
+            'father.system_email' => ['nullable', 'string', 'max:255'],
+            'father.address' => ['nullable', 'string'],
+            'father.occupation' => ['nullable', 'string', 'max:255'],
+            'father.linked_guardian_id' => ['nullable', 'integer'],
+            'mother' => ['nullable', 'array'],
+            'mother.name' => ['nullable', 'string', 'max:255'],
+            'mother.phone' => ['nullable', 'string', 'max:32'],
+            'mother.email' => ['nullable', 'email', 'max:255'],
+            'mother.system_email' => ['nullable', 'string', 'max:255'],
+            'mother.address' => ['nullable', 'string'],
+            'mother.occupation' => ['nullable', 'string', 'max:255'],
+            'mother.linked_guardian_id' => ['nullable', 'integer'],
             'guardian' => ['nullable', 'array'],
+            'guardian.guardian_name' => ['nullable', 'string', 'max:255'],
             'guardian.father_name' => ['nullable', 'string', 'max:255'],
             'guardian.mother_name' => ['nullable', 'string', 'max:255'],
-            'guardian.guardian_name' => ['nullable', 'string', 'max:255'],
             'guardian.email' => ['nullable', 'email', 'max:255'],
             'guardian.phone' => ['nullable', 'string', 'max:32'],
             'guardian.relationship' => ['nullable', 'string', 'max:64'],
@@ -91,6 +110,7 @@ class StudentController extends Controller
             'first_name' => ['sometimes', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
             'last_name' => ['sometimes', 'string', 'max:255'],
+            'system_email' => ['nullable', 'string', 'max:255', Rule::unique('users', 'system_email')->ignore($student->user_id, 'id')],
             'email' => ['nullable', 'email', 'max:255'],
             'date_of_birth' => ['nullable', 'date', 'before:today'],
             'gender' => ['nullable', 'in:male,female'],
@@ -107,11 +127,17 @@ class StudentController extends Controller
         $old = $student->toArray();
         $student->update($data);
 
-        if (! empty($data['email']) && $student->user) {
-            $student->user->update(['email' => $data['email']]);
+        if ($student->user) {
+            if (array_key_exists('system_email', $data)) {
+                $student->user->update(['system_email' => $data['system_email']]);
+            }
+
+            if (array_key_exists('email', $data)) {
+                $student->user->update(['email' => $data['email']]);
+            }
         }
 
-        \App\Support\AuditLogger::log('student.updated', $student, $old, $student->toArray());
+        AuditLogger::log('student.updated', $student, $old, $student->toArray());
 
         return new StudentResource($student->load('class.grade', 'user', 'guardians'));
     }
@@ -132,7 +158,7 @@ class StudentController extends Controller
         Gate::authorize('update', $student);
 
         $student->update(['status' => StudentStatus::Active]);
-        \App\Support\AuditLogger::log('student.restored', $student);
+        AuditLogger::log('student.restored', $student);
 
         return new StudentResource($student);
     }
@@ -148,7 +174,7 @@ class StudentController extends Controller
         $old = $student->only(['class_id']);
         $student->update(['class_id' => $class->id]);
 
-        \App\Support\AuditLogger::log('student.class_assigned', $student, $old, ['class_id' => $class->id]);
+        AuditLogger::log('student.class_assigned', $student, $old, ['class_id' => $class->id]);
 
         return new StudentResource($student->load('class.grade'));
     }

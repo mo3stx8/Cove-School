@@ -19,6 +19,7 @@ class TeacherResource extends JsonResource
             'user' => $this->whenLoaded('user', fn () => [
                 'id' => $this->user->id,
                 'name' => $this->user->name,
+                'system_email' => $this->user->system_email,
                 'email' => $this->user->email,
                 'phone' => $this->user->phone,
                 'avatar' => $this->user->avatar,

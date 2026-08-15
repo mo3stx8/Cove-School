@@ -2,6 +2,7 @@ export interface User {
   id: number
   school_id: number
   name: string
+  system_email: string | null
   email: string | null
   phone: string | null
   locale: string
@@ -102,7 +103,25 @@ export interface Guardian {
   name: string
   phone: string | null
   email: string | null
+  system_email: string | null
   relationship: string | null
+  is_primary?: boolean
+  user_id?: number | null
+  linked_students_count?: number
+}
+
+export interface GuardianCheckResult {
+  exists: boolean
+  guardians: {
+    id: number
+    user_id: number | null
+    name: string
+    relationship: string | null
+    email: string | null
+    system_email: string | null
+    phone: string | null
+    linked_students_count: number
+  }[]
 }
 
 export interface Student {
@@ -125,7 +144,7 @@ export interface Student {
   class_id: number | null
   class?: { id: number; name: string } | null
   user_id: number | null
-  user?: { id: number; name: string; email: string; phone: string } | null
+  user?: { id: number; name: string; system_email: string | null; email: string; phone: string } | null
   guardians?: Guardian[] | null
   attendance_rate?: number | null
   created_at: string
@@ -138,7 +157,7 @@ export interface Teacher {
   joining_date: string | null
   status: 'active' | 'archived'
   user_id: number
-  user: { id: number; name: string; email: string; phone: string | null } | null
+  user: { id: number; name: string; system_email: string | null; email: string; phone: string | null } | null
   subjects?: { class_id: number; class_name: string; subject_id: number; subject_name: string }[]
 }
 
