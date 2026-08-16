@@ -14,7 +14,7 @@ class SchoolClass extends Model
     protected $table = 'classes';
 
     protected $fillable = [
-        'school_id', 'academic_year_id', 'grade_id', 'section_name', 'name',
+        'school_id', 'academic_year_id', 'grade_id', 'section_name', 'name', 'name_ar',
         'room', 'class_teacher_id', 'capacity', 'is_active',
     ];
 

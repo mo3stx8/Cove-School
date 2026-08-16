@@ -8,14 +8,16 @@ import { useToast } from '../components/Toast'
 
 interface TeacherForm {
   name: string
+  system_email: string
   email: string
   phone: string
+  specialization: string
   qualification: string
   joining_date: string
   address: string
 }
 
-const emptyForm: TeacherForm = { name: '', email: '', phone: '', qualification: '', joining_date: '', address: '' }
+const emptyForm: TeacherForm = { name: '', system_email: '', email: '', phone: '', specialization: '', qualification: '', joining_date: '', address: '' }
 
 export default function TeachersPage() {
   const { t } = useTranslation()
@@ -62,8 +64,10 @@ export default function TeachersPage() {
     setEditing(teacher)
     setForm({
       name: teacher.user?.name ?? '',
-      email: teacher.user?.system_email ?? teacher.user?.email ?? '',
+      system_email: teacher.user?.system_email ?? '',
+      email: teacher.user?.email ?? '',
       phone: teacher.user?.phone ?? '',
+      specialization: teacher.specialization ?? '',
       qualification: teacher.qualification ?? '',
       joining_date: teacher.joining_date ?? '',
       address: '',
@@ -78,11 +82,13 @@ export default function TeachersPage() {
     setError('')
     const payload = {
       name: form.name,
+      system_email: form.system_email,
       email: form.email,
-      phone: form.phone || undefined,
-      qualification: form.qualification || undefined,
-      joining_date: form.joining_date || undefined,
-      address: form.address || undefined,
+      phone: form.phone,
+      specialization: form.specialization,
+      qualification: form.qualification,
+      joining_date: form.joining_date,
+      address: form.address,
     }
     try {
       if (editing) {
@@ -151,12 +157,14 @@ export default function TeachersPage() {
       ) : (
         <Card>
           <Table
-            headers={[t('teachers.name'), t('teachers.email'), t('teachers.phone'), t('teachers.employeeId'), t('teachers.qualification'), t('common.status'), t('common.actions')]}
+            headers={[t('teachers.name'), t('teachers.systemEmail'), t('teachers.email'), t('teachers.specialization'), t('teachers.phone'), t('teachers.employeeId'), t('teachers.qualification'), t('common.status'), t('common.actions')]}
           >
             {teachers.map((teacher) => (
               <tr key={teacher.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-900">{teacher.user?.name ?? '—'}</td>
-                <td className="px-4 py-3 text-gray-600">{teacher.user?.system_email ?? '—'}</td>
+                <td className="px-4 py-3 font-mono text-xs text-gray-500">{teacher.user?.system_email ?? '—'}</td>
+                <td className="px-4 py-3 text-gray-600">{teacher.user?.email ?? '—'}</td>
+                <td className="px-4 py-3 text-gray-600">{teacher.specialization ?? '—'}</td>
                 <td className="px-4 py-3 text-gray-600">{teacher.user?.phone ?? '—'}</td>
                 <td className="px-4 py-3 font-mono text-xs text-gray-500">{teacher.employee_id ?? '—'}</td>
                 <td className="px-4 py-3 text-gray-600">{teacher.qualification ?? '—'}</td>
@@ -192,21 +200,27 @@ export default function TeachersPage() {
           <Field label={t('teachers.name')} required>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
           </Field>
+          <Field label={t('teachers.systemEmail')} required>
+            <Input type="email" value={form.system_email} onChange={(e) => setForm({ ...form, system_email: e.target.value })} required />
+          </Field>
           <Field label={t('teachers.email')} required>
             <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
           </Field>
-          <Field label={t('teachers.phone')}>
-            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+          <Field label={t('teachers.specialization')} required>
+            <Input value={form.specialization} onChange={(e) => setForm({ ...form, specialization: e.target.value })} required />
           </Field>
-          <Field label={t('teachers.qualification')}>
-            <Input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} />
+          <Field label={t('teachers.phone')} required>
+            <Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} required />
           </Field>
-          <Field label={t('teachers.joiningDate')}>
-            <Input type="date" value={form.joining_date} onChange={(e) => setForm({ ...form, joining_date: e.target.value })} />
+          <Field label={t('teachers.qualification')} required>
+            <Input value={form.qualification} onChange={(e) => setForm({ ...form, qualification: e.target.value })} required />
+          </Field>
+          <Field label={t('teachers.joiningDate')} required>
+            <Input type="date" value={form.joining_date} onChange={(e) => setForm({ ...form, joining_date: e.target.value })} required />
           </Field>
           <div className="col-span-full">
-            <Field label={t('teachers.address')}>
-              <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            <Field label={t('teachers.address')} required>
+              <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} required />
             </Field>
           </div>
           <div className="col-span-full mt-4 flex justify-end gap-2">

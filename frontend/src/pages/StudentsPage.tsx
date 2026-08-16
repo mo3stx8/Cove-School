@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, errorMessage, listMeta, unwrapList } from '../lib/api'
+import { localizedName } from '../lib/format'
 import type { SchoolClass, Student } from '../lib/types'
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Pagination, Spinner, Table } from '../components/ui'
 import { Field, Input, Modal, Select } from '../components/form'
 import ParentSection, { emptyParentForm, type ParentForm } from '../components/ParentSection'
+import { useEmailCheck } from '../lib/emailCheck'
 import { useToast } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
 
@@ -79,6 +81,14 @@ export default function StudentsPage() {
   const [assignModal, setAssignModal] = useState<{ student: Student; class_id: string } | null>(null)
   const [assigning, setAssigning] = useState(false)
   const [assignError, setAssignError] = useState('')
+
+  const { state: studentEmailState, owners: studentEmailOwners } = useEmailCheck(editing ? '' : form.email)
+  const studentEmailConflict = studentEmailState === 'used' && studentEmailOwners[0]
+    ? t('students.emailUsedBy', {
+        name: studentEmailOwners[0].name,
+        context: studentEmailOwners[0].context,
+      })
+    : undefined
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -268,7 +278,7 @@ export default function StudentsPage() {
               <tr key={s.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-mono text-xs text-gray-500">{s.student_number}</td>
                 <td className="px-4 py-3 font-medium text-gray-900">{s.full_name}</td>
-                <td className="px-4 py-3 text-gray-600">{s.class?.name ?? t('students.noClass')}</td>
+                <td className="px-4 py-3 text-gray-600">{s.class ? localizedName(s.class) : t('students.noClass')}</td>
                 <td className="px-4 py-3 capitalize text-gray-600">{s.gender ?? '—'}</td>
                 <td className="px-4 py-3">
                   <Badge color={s.status === 'active' ? 'green' : 'gray'}>{s.status}</Badge>
@@ -318,7 +328,7 @@ export default function StudentsPage() {
           <Field label={t('students.systemEmail')}>
             <Input type="text" value={form.system_email} onChange={(e) => setForm({ ...form, system_email: e.target.value })} placeholder={t('students.systemEmailHint')} />
           </Field>
-          <Field label={t('students.realEmail')}>
+          <Field label={t('students.realEmail')} error={studentEmailConflict}>
             <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={t('students.realEmailHint')} />
           </Field>
           <Field label={t('students.dob')}>
@@ -336,7 +346,7 @@ export default function StudentsPage() {
               <option value="">{t('students.noClass')}</option>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {localizedName(c)}
                 </option>
               ))}
             </Select>
@@ -361,11 +371,11 @@ export default function StudentsPage() {
               <div className="col-span-full border-t border-gray-100 pt-4">
                 <h4 className="mb-3 text-sm font-semibold text-gray-600">{t('students.fatherInfo')}</h4>
               </div>
-              <ParentSection title={t('students.fatherInfo')} value={father} onChange={setFather} />
+              <ParentSection role="father" title={t('students.fatherInfo')} value={father} onChange={setFather} />
               <div className="col-span-full border-t border-gray-100 pt-4">
                 <h4 className="mb-3 text-sm font-semibold text-gray-600">{t('students.motherInfo')}</h4>
               </div>
-              <ParentSection title={t('students.motherInfo')} value={mother} onChange={setMother} />
+              <ParentSection role="mother" title={t('students.motherInfo')} value={mother} onChange={setMother} />
             </>
           )}
           <div className="col-span-full mt-4 flex justify-end gap-2">
@@ -396,7 +406,7 @@ export default function StudentsPage() {
               <option value="">{t('students.noClass')}</option>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {localizedName(c)}
                 </option>
               ))}
             </Select>

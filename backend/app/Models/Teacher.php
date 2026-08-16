@@ -11,7 +11,7 @@ class Teacher extends Model
     use BelongsToSchool;
 
     protected $fillable = [
-        'school_id', 'user_id', 'employee_id', 'qualification', 'joining_date',
+        'school_id', 'user_id', 'employee_id', 'qualification', 'specialization', 'joining_date',
         'leaving_date', 'status', 'address',
     ];
 

@@ -11,7 +11,7 @@ class Subject extends Model
 {
     use BelongsToSchool;
 
-    protected $fillable = ['school_id', 'name', 'code', 'description', 'is_active'];
+    protected $fillable = ['school_id', 'name', 'name_ar', 'code', 'description', 'is_active'];
 
     protected function casts(): array
     {

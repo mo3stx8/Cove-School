@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\TeacherResource;
 use App\Models\Teacher;
+use App\Services\EmailUniquenessService;
 use App\Services\TeacherService;
 use App\Support\AuditLogger;
 use App\Support\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 
 class TeacherController extends Controller
 {
@@ -35,13 +37,17 @@ class TeacherController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,system_email'],
-            'phone' => ['nullable', 'string', 'max:32'],
+            'system_email' => ['required', 'string', 'max:255', 'unique:users,system_email'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone' => ['required', 'string', 'max:32'],
+            'specialization' => ['required', 'string', 'max:255'],
+            'qualification' => ['required', 'string', 'max:255'],
+            'joining_date' => ['required', 'date'],
+            'address' => ['required', 'string'],
             'employee_id' => ['nullable', 'string', 'max:64'],
-            'qualification' => ['nullable', 'string', 'max:255'],
-            'joining_date' => ['nullable', 'date'],
-            'address' => ['nullable', 'string'],
         ]);
+
+        app(EmailUniquenessService::class)->assertUnique(['email' => $data['email']]);
 
         $teacher = $this->teachers->create($data, app(TenantContext::class)->school(), $request->user());
 
@@ -63,17 +69,37 @@ class TeacherController extends Controller
 
         $data = $request->validate([
             'employee_id' => ['sometimes', 'string', 'max:64'],
-            'qualification' => ['nullable', 'string', 'max:255'],
-            'joining_date' => ['nullable', 'date'],
-            'address' => ['nullable', 'string'],
+            'qualification' => ['sometimes', 'string', 'max:255'],
+            'specialization' => ['sometimes', 'string', 'max:255'],
+            'joining_date' => ['sometimes', 'date'],
+            'address' => ['sometimes', 'string'],
             'name' => ['sometimes', 'string', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:32'],
+            'phone' => ['sometimes', 'string', 'max:32'],
+            'system_email' => ['sometimes', 'string', 'max:255', Rule::unique('users', 'system_email')->ignore($teacher->user_id, 'id')],
+            'email' => ['sometimes', 'email', 'max:255'],
         ]);
+
+        if (! empty($data['email'])) {
+            app(EmailUniquenessService::class)->assertUnique(
+                ['email' => $data['email']],
+                exceptUserIds: [$teacher->user_id],
+            );
+        }
 
         $teacher->update($data);
 
-        if (($data['name'] ?? null) && $teacher->user) {
-            $teacher->user->update(['name' => $data['name']]);
+        if ($teacher->user) {
+            if (($data['name'] ?? null)) {
+                $teacher->user->update(['name' => $data['name']]);
+            }
+
+            if (array_key_exists('system_email', $data)) {
+                $teacher->user->update(['system_email' => $data['system_email']]);
+            }
+
+            if (array_key_exists('email', $data)) {
+                $teacher->user->update(['email' => $data['email']]);
+            }
         }
 
         AuditLogger::log('teacher.updated', $teacher);

@@ -22,7 +22,7 @@ class TeacherService
             $user = User::create([
                 'school_id' => $school->id,
                 'name' => $data['name'],
-                'system_email' => $data['email'],
+                'system_email' => $data['system_email'],
                 'email' => $data['email'],
                 'phone' => $data['phone'] ?? null,
                 'password' => Str::random(32),
@@ -40,6 +40,7 @@ class TeacherService
                 'user_id' => $user->id,
                 'employee_id' => $data['employee_id'] ?? NumberGenerator::employeeId($school->id),
                 'qualification' => $data['qualification'] ?? null,
+                'specialization' => $data['specialization'] ?? null,
                 'joining_date' => $data['joining_date'] ?? null,
                 'status' => 'active',
                 'address' => $data['address'] ?? null,

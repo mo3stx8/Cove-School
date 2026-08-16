@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { api, errorMessage, listMeta, unwrapList } from '../lib/api'
+import { formatDateTime } from '../lib/format'
 import type { AppNotification } from '../lib/types'
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Pagination, Spinner } from '../components/ui'
 
@@ -81,7 +82,7 @@ export default function NotificationsPage() {
                   <div>
                     <p className="font-medium text-gray-800">{n.title}</p>
                     {n.body && <p className="mt-1 text-sm text-gray-600">{n.body}</p>}
-                    <p className="mt-1 text-xs text-gray-400">{n.created_at}</p>
+                    <p className="mt-1 text-xs text-gray-400">{formatDateTime(n.created_at)}</p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
                     {!n.read_at && <Badge color="blue">{t('notifications.unread')}</Badge>}

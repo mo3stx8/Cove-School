@@ -50,6 +50,7 @@ export interface Grade {
   id: number
   school_id: number
   name: string
+  name_ar: string | null
   level: number
   description: string | null
   is_active: boolean
@@ -60,6 +61,7 @@ export interface Subject {
   id: number
   school_id: number
   name: string
+  name_ar: string | null
   code: string | null
   description: string | null
   is_active: boolean
@@ -154,6 +156,7 @@ export interface Teacher {
   id: number
   employee_id: string | null
   qualification: string | null
+  specialization: string | null
   joining_date: string | null
   status: 'active' | 'archived'
   user_id: number
@@ -164,15 +167,16 @@ export interface Teacher {
 export interface SchoolClass {
   id: number
   name: string
+  name_ar: string | null
   section_name: string
   room: string | null
   capacity: number | null
   is_active: boolean
   students_count: number
-  grade: { id: number; name: string } | null
+  grade: { id: number; name: string; name_ar?: string | null } | null
   academic_year: { id: number; name: string } | null
   class_teacher: { id: number; name: string } | null
-  subjects: { subject_id: number; subject_name: string; teacher_id: number | null; weekly_periods: number }[] | null
+  subjects: { subject_id: number; subject_name: string; subject_name_ar?: string | null; teacher_id: number | null; weekly_periods: number }[] | null
   students: { id: number; name: string; student_number: string; status: string }[] | null
 }
 
@@ -235,8 +239,8 @@ export interface ExamSubject {
   full_marks: number
   pass_marks: number
   status: 'draft' | 'submitted' | 'reviewed' | 'published'
-  subject?: { id: number; name: string }
-  class?: { id: number; name: string; grade?: { id: number; name: string } }
+  subject?: { id: number; name: string; name_ar?: string | null }
+  class?: { id: number; name: string; name_ar?: string | null; grade?: { id: number; name: string; name_ar?: string | null } }
   teacher?: { id: number; name: string }
   results?: ExamResult[]
 }
@@ -311,8 +315,8 @@ export interface Assignment {
   due_date: string
   due_time: string | null
   status: 'published' | 'closed'
-  subject?: { id: number; name: string }
-  class?: { id: number; name: string }
+  subject?: { id: number; name: string; name_ar?: string | null }
+  class?: { id: number; name: string; name_ar?: string | null }
   teacher?: { id: number; name: string }
   submissions_count?: number
   attachments?: AssignmentAttachment[]
@@ -391,7 +395,7 @@ export interface TimetableEntry {
   subject_id: number | null
   teacher_id: number | null
   room: string | null
-  subject?: { id: number; name: string }
+  subject?: { id: number; name: string; name_ar?: string | null }
   teacher?: { id: number; name: string }
 }
 
@@ -447,9 +451,10 @@ export interface StudentDashboard {
     start_time: string
     end_time: string
     subject: string | null
+    subject_ar?: string | null
     room: string | null
   }[]
-  latest_result: { subject: string | null; marks: number | null; grade: string | null; full_marks: number } | null
+  latest_result: { subject: string | null; subject_ar?: string | null; marks: number | null; grade: string | null; full_marks: number } | null
 }
 
 export interface ParentDashboard {

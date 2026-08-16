@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, errorMessage, listMeta, unwrapList } from '../lib/api'
+import { localizedName } from '../lib/format'
 import type { AcademicYear, Exam, ExamResult, ExamSubject, SchoolClass, Subject, Term } from '../lib/types'
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Pagination, Spinner } from '../components/ui'
 import { Field, Input, Modal, Select } from '../components/form'
@@ -202,7 +203,7 @@ export default function ExamsPage() {
                       <div key={es.id} className="flex flex-wrap items-center justify-between rounded-lg border border-gray-200 px-4 py-2.5">
                         <div>
                           <p className="text-sm font-medium text-gray-800">
-                            {es.subject?.name} — {es.class?.name}
+                            {localizedName(es.subject)} — {localizedName(es.class)}
                           </p>
                           <p className="text-xs text-gray-500">
                             {t('exams.fullMarks')}: {es.full_marks} · {t('exams.passMarks')}: {es.pass_marks}
@@ -301,7 +302,7 @@ export default function ExamsPage() {
                     <option value="">{t('classes.title')}</option>
                     {classes.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name}
+                        {localizedName(c)}
                       </option>
                     ))}
                   </Select>
@@ -309,7 +310,7 @@ export default function ExamsPage() {
                     <option value="">{t('academic.subjectName')}</option>
                     {subjects.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {s.name}
+                        {localizedName(s)}
                       </option>
                     ))}
                   </Select>
@@ -344,7 +345,7 @@ export default function ExamsPage() {
         ) : (
           <form onSubmit={(e) => void saveMarks(e)} className="space-y-2">
             <p className="mb-2 text-sm text-gray-500">
-              {selected?.subject?.name} — {selected?.class?.name} · {t('exams.fullMarks')}: {selected?.full_marks}
+              {selected ? localizedName(selected.subject) : ''} — {selected ? localizedName(selected.class) : ''} · {t('exams.fullMarks')}: {selected?.full_marks}
             </p>
             {marksRows.map((row) => (
               <div key={row.student_id} className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-2">

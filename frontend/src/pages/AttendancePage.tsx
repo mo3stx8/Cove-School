@@ -13,6 +13,7 @@ interface AttendanceCorrection {
   new_status: string
   reason: string
   created_at: string
+  student_name?: string
   requester?: { id: number; name: string }
   record?: { id: number; student?: { id: number; full_name: string } }
 }
@@ -302,7 +303,7 @@ export default function AttendancePage() {
             {corrections.map((c) => (
               <li key={c.id} className="flex items-center justify-between rounded-lg border border-gray-200 px-4 py-3">
                 <div>
-                  <p className="text-sm font-medium text-gray-800">{c.record?.student?.full_name ?? `#${c.record?.id ?? ''}`}</p>
+                  <p className="text-sm font-medium text-gray-800">{c.student_name ?? c.record?.student?.full_name ?? `#${c.record?.id ?? ''}`}</p>
                   <p className="text-xs text-gray-500">
                     {t('attendance.newStatus')}: <Badge color={statusColor(c.new_status)}>{c.new_status}</Badge> · {c.reason}
                   </p>

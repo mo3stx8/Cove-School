@@ -22,11 +22,21 @@ class FeeController extends Controller
 
     // ---- Fee types ----
 
-    public function feeTypes()
+    public function feeTypes(Request $request)
     {
         Gate::authorize('view', FeeType::class);
 
-        return response()->json(['data' => FeeType::query()->orderBy('name')->get()]);
+        $feeTypes = FeeType::query()
+            ->when($request->input('search'), function ($q, $search) {
+                $q->where(function ($w) use ($search) {
+                    $w->where('name', 'ilike', "%{$search}%")
+                        ->orWhere('code', 'ilike', "%{$search}%");
+                });
+            })
+            ->orderBy('name')
+            ->get();
+
+        return response()->json(['data' => $feeTypes]);
     }
 
     public function storeFeeType(Request $request)
@@ -42,6 +52,8 @@ class FeeController extends Controller
             'frequency' => ['sometimes', 'in:term,year,one-time'],
             'description' => ['nullable', 'string'],
         ]);
+
+        $data['code'] = $data['code'] ?? NumberGenerator::feeTypeCode($school->id);
 
         $feeType = $school->feeTypes()->create($data);
         AuditLogger::log('fee_type.created', $feeType);
@@ -80,6 +92,16 @@ class FeeController extends Controller
             ->when($user->hasRole('parent'), fn ($q) => $q->whereIn('student_id', $user->linkedStudentIds() ?: [0]))
             ->when($request->input('student_id'), fn ($q, $id) => $q->where('student_id', $id))
             ->when($request->input('status'), fn ($q, $s) => $q->where('status', $s))
+            ->when($request->input('search'), function ($q, $search) {
+                $q->where(function ($w) use ($search) {
+                    $w->where('invoice_number', 'ilike', "%{$search}%")
+                        ->orWhereHas('student', function ($s) use ($search) {
+                            $s->where('student_number', 'ilike', "%{$search}%")
+                                ->orWhere('first_name', 'ilike', "%{$search}%")
+                                ->orWhere('last_name', 'ilike', "%{$search}%");
+                        });
+                });
+            })
             ->when($request->input('class_id'), fn ($q, $id) => $q->whereHas('student', fn ($s) => $s->where('class_id', $id)));
 
         $invoices = $query->latest()->paginate($request->integer('per_page', 25));

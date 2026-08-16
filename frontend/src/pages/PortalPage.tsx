@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, errorMessage, unwrapList } from '../lib/api'
+import { localizedName } from '../lib/format'
 import { roleOf, useAuth } from '../context/AuthContext'
 import type { Assignment, AssignmentSubmission, Invoice, ParentDashboard, StudentDashboard } from '../lib/types'
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Spinner } from '../components/ui'
@@ -93,7 +94,7 @@ export default function PortalPage() {
                 {studentDash?.todays_periods?.map((p) => (
                   <div key={p.period_number} className="flex items-center justify-between border-b border-gray-100 pb-2 text-sm">
                     <div>
-                      <span className="font-semibold text-gray-700">{p.period_number}.</span> <span className="text-gray-700">{p.subject ?? '—'}</span>
+                      <span className="font-semibold text-gray-700">{p.period_number}.</span> <span className="text-gray-700">{p.subject_ar && isArabic() ? p.subject_ar : (p.subject ?? '—')}</span>
                     </div>
                     <span className="text-xs text-gray-500">
                       {p.start_time}–{p.end_time} {p.room ? `· ${p.room}` : ''}
@@ -108,7 +109,7 @@ export default function PortalPage() {
               {studentDash?.latest_result ? (
                 <div className="flex items-center justify-between rounded-lg bg-gray-50 p-4">
                   <div>
-                    <p className="font-semibold text-gray-800">{studentDash.latest_result.subject}</p>
+                    <p className="font-semibold text-gray-800">{studentDash.latest_result.subject_ar && isArabic() ? studentDash.latest_result.subject_ar : studentDash.latest_result.subject}</p>
                     <p className="text-xs text-gray-500">{t('exams.fullMarks')}: {studentDash.latest_result.full_marks}</p>
                   </div>
                   <div className="text-end">
@@ -133,7 +134,7 @@ export default function PortalPage() {
                     <div>
                       <h3 className="font-semibold text-gray-800">{a.title}</h3>
                       <p className="mt-1 text-xs text-gray-500">
-                        {a.subject?.name} · {t('assignments.dueDate')}: {a.due_date}
+                        {a.subject ? localizedName(a.subject) : ''} · {t('assignments.dueDate')}: {a.due_date}
                       </p>
                       {a.description && <p className="mt-2 text-sm text-gray-600">{a.description}</p>}
                     </div>

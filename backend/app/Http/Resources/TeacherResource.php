@@ -13,6 +13,7 @@ class TeacherResource extends JsonResource
             'id' => $this->id,
             'employee_id' => $this->employee_id,
             'qualification' => $this->qualification,
+            'specialization' => $this->specialization,
             'joining_date' => $this->joining_date?->toDateString(),
             'status' => $this->status,
             'user_id' => $this->user_id,

@@ -178,10 +178,12 @@ class DashboardController extends Controller
                 'start_time' => $e->start_time?->format('H:i'),
                 'end_time' => $e->end_time?->format('H:i'),
                 'subject' => $e->subject?->name,
+                'subject_ar' => $e->subject?->name_ar,
                 'room' => $e->room,
             ]),
             'latest_result' => $latestResult ? [
                 'subject' => $latestResult->examSubject?->subject?->name,
+                'subject_ar' => $latestResult->examSubject?->subject?->name_ar,
                 'marks' => $latestResult->marks,
                 'grade' => $latestResult->grade,
                 'full_marks' => $latestResult->examSubject?->full_marks,

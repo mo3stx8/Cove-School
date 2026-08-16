@@ -1,4 +1,28 @@
 Project description:
-This projects is for small school as starter.
-copy rights for Aogolo.
-SiliconCove Company
+Cove School (SiliconCove-SMS) is a full-stack School Management System built for small to medium schools as a starter platform. It digitizes the core academic and administrative workflows in one place, with full bilingual (English / Arabic) support.
+
+Architecture:
+- Backend: Laravel 12 (PHP) with a REST JSON API under /api/v1, PostgreSQL database, Sanctum token authentication, and SQLite-backed automated tests.
+- Frontend: React 18 + TypeScript + Vite single-page application with react-i18next for EN/AR localization (RTL included), Tailwind CSS UI kit, and Axios API client.
+- Roles: Super Admin, Admin, Teacher, Student, and Parent, each with its own dashboard and permission scopes.
+
+Core modules:
+- School onboarding wizard (school profile, admin account, academic year, terms, grade scale, first grade/subject, fee type).
+- Academic structure: grades, subjects, classes (grade + section), class-subject-teacher assignment, academic years and terms.
+- Student management: enrollment, parent/guardian linking with automatic duplicate-email detection, class assignment, activation emails via SMTP.
+- Teacher management: system login email, real email, specialization, qualification, joining date, employee ID.
+- Attendance: per-class sessions with present/absent/late/excused marking and correction requests showing student names.
+- Exams & grading: exams per class/subject, marks entry, submit/review/publish workflow, letter-grade scale, report cards, and subject averages.
+- Assignments: publish per class/subject with due dates and student submissions.
+- Fees & finance: auto-generated fee type codes (e.g. FT-0001), invoice generation, statuses (paid/partial/unpaid/overdue/cancelled), and search/filtering.
+- Timetable & notifications: weekly period timetable with conflict detection, in-app notification feed.
+- Reports: subject averages, finance overview, student attendance rates, latest results.
+
+Key features:
+- Bilingual naming: grades, subjects, and classes carry both an English name and an Arabic name, displayed according to the active UI language.
+- Simple, localized date/time formatting throughout (no ISO timestamps shown to users).
+- Fee-type and invoice search by name/code/student ID with status filters.
+- Email activation flow for admin-created user accounts via Gmail SMTP.
+
+Copyrights for Aogolo.
+SiliconCove Company.

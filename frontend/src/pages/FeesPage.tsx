@@ -15,6 +15,8 @@ export default function FeesPage() {
   const [invPage, setInvPage] = useState(1)
   const [invLastPage, setInvLastPage] = useState(1)
   const [invTotal, setInvTotal] = useState(0)
+  const [invSearch, setInvSearch] = useState('')
+  const [invStatus, setInvStatus] = useState('')
 
   const [payments, setPayments] = useState<FeePayment[]>([])
   const [payPage, setPayPage] = useState(1)
@@ -22,6 +24,7 @@ export default function FeesPage() {
   const [paySearch, setPaySearch] = useState('')
 
   const [feeTypes, setFeeTypes] = useState<FeeType[]>([])
+  const [feeTypeSearch, setFeeTypeSearch] = useState('')
   const [students, setStudents] = useState<Student[]>([])
   const [years, setYears] = useState<AcademicYear[]>([])
   const [terms, setTerms] = useState<Term[]>([])
@@ -44,7 +47,14 @@ export default function FeesPage() {
     setLoading(true)
     try {
       const [inv, ft] = await Promise.all([
-        api.get<{ data: unknown }>('/invoices', { params: { per_page: 25, page: invPage } }),
+        api.get<{ data: unknown }>('/invoices', {
+          params: {
+            per_page: 25,
+            page: invPage,
+            search: invSearch || undefined,
+            status: invStatus || undefined,
+          },
+        }),
         api.get<{ data: FeeType[] }>('/fee-types'),
       ])
       setInvoices(unwrapList<Invoice>(inv.data))
@@ -57,7 +67,7 @@ export default function FeesPage() {
     } finally {
       setLoading(false)
     }
-  }, [invPage])
+  }, [invPage, invSearch, invStatus])
 
   useEffect(() => {
     void load()
@@ -147,7 +157,6 @@ export default function FeesPage() {
     try {
       const payload = {
         name: feeTypeForm.name,
-        code: feeTypeForm.code || undefined,
         amount: Number(feeTypeForm.amount),
         frequency: feeTypeForm.frequency,
         description: feeTypeForm.description || undefined,
@@ -206,6 +215,12 @@ export default function FeesPage() {
 
   const invoiceStatus = (s: string) => (s === 'paid' ? 'green' : s === 'partial' ? 'blue' : s === 'overdue' ? 'red' : s === 'cancelled' ? 'gray' : 'amber')
 
+  const filteredFeeTypes = feeTypes.filter((ft) => {
+    const q = feeTypeSearch.trim().toLowerCase()
+    if (!q) return true
+    return ft.name.toLowerCase().includes(q) || (ft.code ?? '').toLowerCase().includes(q)
+  })
+
   return (
     <div>
       <PageHeader
@@ -237,6 +252,25 @@ export default function FeesPage() {
           <EmptyState message={t('common.noData')} />
         ) : (
           <>
+            <Card className="mb-4 flex flex-wrap items-center gap-3 p-3">
+              <Input
+                placeholder={t('fees.searchInvoices')}
+                value={invSearch}
+                onChange={(e) => {
+                  setInvSearch(e.target.value)
+                  setInvPage(1)
+                }}
+                className="max-w-md"
+              />
+              <Select value={invStatus} onChange={(e) => { setInvStatus(e.target.value); setInvPage(1) }} className="w-44">
+                <option value="">{t('fees.statusAll')}</option>
+                <option value="unpaid">{t('fees.unpaid')}</option>
+                <option value="partial">{t('fees.partial')}</option>
+                <option value="paid">{t('fees.paid')}</option>
+                <option value="overdue">{t('fees.overdue')}</option>
+                <option value="cancelled">{t('fees.cancelled')}</option>
+              </Select>
+            </Card>
             <Card>
               <Table
                 headers={[t('fees.invoiceNumber'), t('fees.student'), t('fees.invoiceTitle'), t('fees.amount'), t('fees.status'), t('common.actions')]}
@@ -317,27 +351,39 @@ export default function FeesPage() {
             </div>
           </>
         )
-      ) : feeTypes.length === 0 ? (
-        <EmptyState message={t('common.noData')} />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {feeTypes.map((ft) => (
-            <Card key={ft.id} className="p-5">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-gray-800">{ft.name}</h3>
-                <Badge color={ft.is_active ? 'green' : 'gray'}>{ft.is_active ? t('classes.active') : t('common.archived')}</Badge>
-              </div>
-              <p className="mt-1 font-mono text-sm text-gray-500">{ft.code}</p>
-              <p className="mt-2 text-lg font-semibold text-gray-900">{Number(ft.amount).toFixed(2)}</p>
-              <Badge color="indigo">{ft.frequency}</Badge>
-              {ft.description && <p className="mt-2 text-xs text-gray-500">{ft.description}</p>}
-              <div className="mt-4">
-                <Button variant="secondary" size="sm" onClick={() => openFeeType(ft)}>
-                  {t('common.edit')}
-                </Button>
-              </div>
-            </Card>
-          ))}
+        <div>
+          <Card className="mb-4 p-3">
+            <Input
+              placeholder={t('fees.searchFeeTypes')}
+              value={feeTypeSearch}
+              onChange={(e) => setFeeTypeSearch(e.target.value)}
+              className="max-w-md"
+            />
+          </Card>
+          {filteredFeeTypes.length === 0 ? (
+            <EmptyState message={t('common.noData')} />
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+              {filteredFeeTypes.map((ft) => (
+                <Card key={ft.id} className="p-5">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-800">{ft.name}</h3>
+                    <Badge color={ft.is_active ? 'green' : 'gray'}>{ft.is_active ? t('classes.active') : t('common.archived')}</Badge>
+                  </div>
+                  <p className="mt-1 font-mono text-sm text-gray-500">{ft.code}</p>
+                  <p className="mt-2 text-lg font-semibold text-gray-900">{Number(ft.amount).toFixed(2)}</p>
+                  <Badge color="indigo">{ft.frequency}</Badge>
+                  {ft.description && <p className="mt-2 text-xs text-gray-500">{ft.description}</p>}
+                  <div className="mt-4">
+                    <Button variant="secondary" size="sm" onClick={() => openFeeType(ft)}>
+                      {t('common.edit')}
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -429,7 +475,11 @@ export default function FeesPage() {
             <Input value={feeTypeForm.name} onChange={(e) => setFeeTypeForm({ ...feeTypeForm, name: e.target.value })} required />
           </Field>
           <Field label={t('fees.code')}>
-            <Input value={feeTypeForm.code} onChange={(e) => setFeeTypeForm({ ...feeTypeForm, code: e.target.value })} />
+            {feeTypeEditing ? (
+              <Input value={feeTypeForm.code} disabled />
+            ) : (
+              <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-400">{t('fees.codeAuto')}</p>
+            )}
           </Field>
           <Field label={t('fees.amount')} required>
             <Input type="number" min={0} step="0.01" value={feeTypeForm.amount} onChange={(e) => setFeeTypeForm({ ...feeTypeForm, amount: e.target.value })} required />

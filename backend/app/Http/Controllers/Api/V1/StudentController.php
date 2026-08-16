@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\StudentResource;
 use App\Models\SchoolClass;
 use App\Models\Student;
+use App\Services\EmailUniquenessService;
 use App\Services\StudentService;
 use App\Support\AuditLogger;
 use App\Support\TenantContext;
@@ -123,6 +124,13 @@ class StudentController extends Controller
             'emergency_contact_phone' => ['nullable', 'string', 'max:32'],
             'medical_notes' => ['nullable', 'string'],
         ]);
+
+        if (! empty($data['email'])) {
+            app(EmailUniquenessService::class)->assertUnique(
+                ['email' => $data['email']],
+                exceptUserIds: [$student->user_id],
+            );
+        }
 
         $old = $student->toArray();
         $student->update($data);

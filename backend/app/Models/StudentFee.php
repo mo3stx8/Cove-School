@@ -23,7 +23,7 @@ class StudentFee extends Model
         return [
             'amount' => 'float',
             'discount_amount' => 'float',
-            'due_date' => 'date',
+            'due_date' => 'date:Y-m-d',
             'status' => FeeStatus::class,
         ];
     }

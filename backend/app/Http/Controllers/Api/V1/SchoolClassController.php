@@ -38,6 +38,7 @@ class SchoolClassController extends Controller
             'academic_year_id' => ['required', 'exists:academic_years,id'],
             'grade_id' => ['required', 'exists:grades,id'],
             'section_name' => ['required', 'string', 'max:16'],
+            'name_ar' => ['nullable', 'string', 'max:255'],
             'room' => ['nullable', 'string', 'max:64'],
             'class_teacher_id' => ['nullable', 'exists:users,id'],
             'capacity' => ['nullable', 'integer', 'min:1', 'max:500'],
@@ -50,6 +51,7 @@ class SchoolClassController extends Controller
             'grade_id' => $data['grade_id'],
             'section_name' => $data['section_name'],
             'name' => "{$grade->name} {$data['section_name']}",
+            'name_ar' => $data['name_ar'] ?? (($grade->name_ar ? "{$grade->name_ar} {$data['section_name']}" : null)),
             'room' => $data['room'] ?? null,
             'class_teacher_id' => $data['class_teacher_id'] ?? null,
             'capacity' => $data['capacity'] ?? null,
@@ -75,6 +77,7 @@ class SchoolClassController extends Controller
 
         $data = $request->validate([
             'section_name' => ['sometimes', 'string', 'max:16'],
+            'name_ar' => ['nullable', 'string', 'max:255'],
             'room' => ['nullable', 'string', 'max:64'],
             'class_teacher_id' => ['nullable', 'exists:users,id'],
             'capacity' => ['nullable', 'integer', 'min:1', 'max:500'],
@@ -83,6 +86,9 @@ class SchoolClassController extends Controller
 
         if (isset($data['section_name'])) {
             $data['name'] = "{$class->grade->name} {$data['section_name']}";
+            if (($data['name_ar'] ?? null) === null && $class->grade->name_ar) {
+                $data['name_ar'] = "{$class->grade->name_ar} {$data['section_name']}";
+            }
         }
 
         $class->update($data);
@@ -118,6 +124,8 @@ class SchoolClassController extends Controller
 
         $school = app(TenantContext::class)->school();
 
+        $subjectIds = collect($data['subjects'])->pluck('subject_id')->map('intval')->all();
+
         foreach ($data['subjects'] as $item) {
             $class->classSubjects()->updateOrCreate(
                 ['school_id' => $school->id, 'subject_id' => $item['subject_id']],
@@ -127,6 +135,13 @@ class SchoolClassController extends Controller
                     'is_active' => true,
                 ],
             );
+        }
+
+        if ($subjectIds !== []) {
+            $class->classSubjects()
+                ->where('school_id', $school->id)
+                ->whereNotIn('subject_id', $subjectIds)
+                ->delete();
         }
 
         AuditLogger::log('class.subjects_assigned', $class, null, $data['subjects']);
@@ -158,17 +173,19 @@ class SchoolClassController extends Controller
         return [
             'id' => $class->id,
             'name' => $class->name,
+            'name_ar' => $class->name_ar,
             'section_name' => $class->section_name,
             'room' => $class->room,
             'capacity' => $class->capacity,
             'is_active' => $class->is_active,
             'students_count' => $class->students_count ?? $class->students()->count(),
-            'grade' => $class->grade ? ['id' => $class->grade->id, 'name' => $class->grade->name] : null,
+            'grade' => $class->grade ? ['id' => $class->grade->id, 'name' => $class->grade->name, 'name_ar' => $class->grade->name_ar] : null,
             'academic_year' => $class->academicYear ? ['id' => $class->academicYear->id, 'name' => $class->academicYear->name] : null,
             'class_teacher' => $class->classTeacher ? ['id' => $class->classTeacher->id, 'name' => $class->classTeacher->name] : null,
             'subjects' => $class->relationLoaded('classSubjects') ? $class->classSubjects->map(fn ($cs) => [
                 'subject_id' => $cs->subject_id,
                 'subject_name' => $cs->subject->name ?? null,
+                'subject_name_ar' => $cs->subject->name_ar ?? null,
                 'teacher_id' => $cs->teacher_id,
                 'weekly_periods' => $cs->weekly_periods,
             ]) : null,

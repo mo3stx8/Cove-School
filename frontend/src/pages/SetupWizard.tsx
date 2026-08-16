@@ -37,8 +37,10 @@ export default function SetupWizard() {
     term2: 'Term 2',
     term3: 'Term 3',
     grade_name: '',
+    grade_name_ar: '',
     level: 1,
     subject_name: '',
+    subject_name_ar: '',
     scaleA: { name: 'A', min: 90, max: 100 },
     scaleB: { name: 'B', min: 80, max: 89 },
     scaleC: { name: 'C', min: 70, max: 79 },
@@ -146,8 +148,8 @@ export default function SetupWizard() {
     setLoading(true)
     setError('')
     try {
-      await api.post('/grades', { name: form.grade_name, level: Number(form.level) })
-      await api.post('/subjects', { name: form.subject_name })
+      await api.post('/grades', { name: form.grade_name, name_ar: form.grade_name_ar || undefined, level: Number(form.level) })
+      await api.post('/subjects', { name: form.subject_name, name_ar: form.subject_name_ar || undefined })
       setStep(3)
     } catch (err) {
       setError(errorMessage(err))
@@ -311,11 +313,17 @@ export default function SetupWizard() {
               <Field label={t('academic.gradeName')} required>
                 <Input value={form.grade_name} onChange={(e) => set('grade_name', e.target.value)} placeholder="Grade 1" />
               </Field>
+              <Field label={t('academic.nameAr')}>
+                <Input value={form.grade_name_ar} onChange={(e) => set('grade_name_ar', e.target.value)} placeholder="الصف الأول" />
+              </Field>
               <Field label={t('academic.level')}>
                 <Input type="number" min={1} value={form.level} onChange={(e) => set('level', Number(e.target.value))} />
               </Field>
               <Field label={t('academic.subjectName')} required>
                 <Input value={form.subject_name} onChange={(e) => set('subject_name', e.target.value)} placeholder="Mathematics" />
+              </Field>
+              <Field label={t('academic.nameAr')}>
+                <Input value={form.subject_name_ar} onChange={(e) => set('subject_name_ar', e.target.value)} placeholder="الرياضيات" />
               </Field>
             </div>
           )}

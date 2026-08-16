@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, errorMessage } from '../lib/api'
+import { localizedName } from '../lib/format'
 import type { AcademicYear, Grade, Subject, Term } from '../lib/types'
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Spinner } from '../components/ui'
 import { Field, Input, Modal } from '../components/form'
@@ -22,11 +23,13 @@ interface YearForm {
 }
 interface GradeForm {
   name: string
+  name_ar: string
   level: string
   is_active: boolean
 }
 interface SubjectForm {
   name: string
+  name_ar: string
   code: string
   description: string
 }
@@ -79,8 +82,8 @@ export default function AcademicPage() {
     setEditing(null)
     setError('')
     if (section === 'years') setForm({ name: '', start_date: '', end_date: '', is_current: false })
-    if (section === 'grades') setForm({ name: '', level: '', is_active: true })
-    if (section === 'subjects') setForm({ name: '', code: '', description: '' })
+    if (section === 'grades') setForm({ name: '', name_ar: '', level: '', is_active: true })
+    if (section === 'subjects') setForm({ name: '', name_ar: '', code: '', description: '' })
     setModalOpen(true)
   }
 
@@ -93,11 +96,11 @@ export default function AcademicPage() {
     }
     if (section === 'grades') {
       const g = item as Grade
-      setForm({ name: g.name, level: String(g.level), is_active: Boolean(g.is_active) })
+      setForm({ name: g.name, name_ar: g.name_ar ?? '', level: String(g.level), is_active: Boolean(g.is_active) })
     }
     if (section === 'subjects') {
       const s = item as Subject
-      setForm({ name: s.name, code: s.code ?? '', description: s.description ?? '' })
+      setForm({ name: s.name, name_ar: s.name_ar ?? '', code: s.code ?? '', description: s.description ?? '' })
     }
     setModalOpen(true)
   }
@@ -140,7 +143,7 @@ export default function AcademicPage() {
         else await api.post('/academic-years', payload)
       } else if (section === 'grades') {
         const g = form as unknown as GradeForm
-        const payload: Record<string, string | number | boolean> = { name: g.name, is_active: g.is_active }
+        const payload: Record<string, string | number | boolean> = { name: g.name, name_ar: g.name_ar || undefined, is_active: g.is_active }
         if (editing) {
           await api.put(`/grades/${(editing as Grade).id}`, payload)
         } else {
@@ -148,7 +151,7 @@ export default function AcademicPage() {
         }
       } else {
         const s = form as unknown as SubjectForm
-        const payload = { name: s.name, code: s.code || undefined, description: s.description || undefined }
+        const payload = { name: s.name, name_ar: s.name_ar || undefined, code: s.code || undefined, description: s.description || undefined }
         if (editing) await api.put(`/subjects/${(editing as Subject).id}`, payload)
         else await api.post('/subjects', payload)
       }
@@ -222,7 +225,7 @@ export default function AcademicPage() {
               {grades.map((grade) => (
                 <Card key={grade.id} className="p-5">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-gray-800">{grade.name}</h3>
+                    <h3 className="font-semibold text-gray-800">{localizedName(grade)}</h3>
                     <Badge color={grade.is_active ? 'green' : 'gray'}>
                       {grade.is_active ? t('classes.active') : t('common.archived')}
                     </Badge>
@@ -247,7 +250,7 @@ export default function AcademicPage() {
                   {subjects.map((subject) => (
                     <li key={subject.id} className="flex items-center justify-between py-3">
                       <div>
-                        <p className="font-medium text-gray-800">{subject.name}</p>
+                        <p className="font-medium text-gray-800">{localizedName(subject)}</p>
                         <p className="text-xs text-gray-500">
                           <span className="font-mono">{subject.code}</span>
                           {subject.description ? ` · ${subject.description}` : ''}
@@ -334,6 +337,9 @@ export default function AcademicPage() {
               <Field label={t('academic.gradeName')} required>
                 <Input value={String(form.name ?? '')} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="Grade 1" />
               </Field>
+              <Field label={t('academic.nameAr')}>
+                <Input value={String(form.name_ar ?? '')} onChange={(e) => setForm({ ...form, name_ar: e.target.value })} placeholder="الصف الأول" />
+              </Field>
               {!editing && (
                 <Field label={t('academic.level')} required>
                   <Input type="number" min={1} max={15} value={String(form.level ?? '')} onChange={(e) => setForm({ ...form, level: e.target.value })} required />
@@ -354,6 +360,9 @@ export default function AcademicPage() {
             <>
               <Field label={t('academic.subjectName')} required>
                 <Input value={String(form.name ?? '')} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              </Field>
+              <Field label={t('academic.nameAr')}>
+                <Input value={String(form.name_ar ?? '')} onChange={(e) => setForm({ ...form, name_ar: e.target.value })} />
               </Field>
               <Field label={t('academic.code')}>
                 <Input value={String(form.code ?? '')} onChange={(e) => setForm({ ...form, code: e.target.value })} />

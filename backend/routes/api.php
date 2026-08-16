@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\AssignmentController;
 use App\Http\Controllers\Api\V1\AttendanceController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\DashboardController;
+use App\Http\Controllers\Api\V1\EmailController;
 use App\Http\Controllers\Api\V1\ExamController;
 use App\Http\Controllers\Api\V1\FeeController;
 use App\Http\Controllers\Api\V1\GuardianController;
@@ -74,6 +75,9 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
 
         // Guardians
         Route::get('guardians/check', [GuardianController::class, 'check']);
+
+        // Real-email owner lookup (duplicate detection)
+        Route::get('emails/check', [EmailController::class, 'check']);
 
         // Students
         Route::get('students', [StudentController::class, 'index']);

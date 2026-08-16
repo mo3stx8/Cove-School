@@ -177,6 +177,7 @@ class AcademicController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'name_ar' => ['nullable', 'string', 'max:255'],
             'level' => ['required', 'integer', 'min:1', 'max:15'],
             'description' => ['nullable', 'string'],
         ]);
@@ -193,6 +194,7 @@ class AcademicController extends Controller
 
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
+            'name_ar' => ['nullable', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
             'is_active' => ['sometimes', 'boolean'],
         ]);
@@ -222,6 +224,7 @@ class AcademicController extends Controller
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'name_ar' => ['nullable', 'string', 'max:255'],
             'code' => ['nullable', 'string', 'max:16'],
             'description' => ['nullable', 'string'],
         ]);
@@ -238,6 +241,7 @@ class AcademicController extends Controller
 
         $data = $request->validate([
             'name' => ['sometimes', 'string', 'max:255'],
+            'name_ar' => ['nullable', 'string', 'max:255'],
             'code' => ['nullable', 'string', 'max:16'],
             'description' => ['nullable', 'string'],
             'is_active' => ['sometimes', 'boolean'],

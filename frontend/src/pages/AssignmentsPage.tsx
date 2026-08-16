@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, errorMessage, listMeta, unwrapList } from '../lib/api'
+import { localizedName } from '../lib/format'
 import type { Assignment, AssignmentSubmission, SchoolClass, Subject } from '../lib/types'
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Pagination, Spinner, Table } from '../components/ui'
 import { Field, Input, Modal, Select, Textarea } from '../components/form'
@@ -195,8 +196,8 @@ export default function AssignmentsPage() {
               {assignments.map((a) => (
                 <tr key={a.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{a.title}</td>
-                  <td className="px-4 py-3 text-gray-600">{a.class?.name ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-600">{a.subject?.name ?? '—'}</td>
+                  <td className="px-4 py-3 text-gray-600">{a.class ? localizedName(a.class) : '—'}</td>
+                  <td className="px-4 py-3 text-gray-600">{a.subject ? localizedName(a.subject) : '—'}</td>
                   <td className="px-4 py-3 text-gray-600">
                     {a.due_date.slice(0, 10)}
                     {a.due_time ? ` - ${formatDueTime(a.due_time)}` : ''}
@@ -256,7 +257,7 @@ export default function AssignmentsPage() {
               <option value="">—</option>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {localizedName(c)}
                 </option>
               ))}
             </Select>
@@ -266,7 +267,7 @@ export default function AssignmentsPage() {
               <option value="">—</option>
               {subjects.map((s) => (
                 <option key={s.id} value={s.id}>
-                  {s.name}
+                  {localizedName(s)}
                 </option>
               ))}
             </Select>

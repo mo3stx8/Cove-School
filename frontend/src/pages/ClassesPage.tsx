@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, errorMessage, unwrapList } from '../lib/api'
+import { isArabic, localizedName } from '../lib/format'
 import type { AcademicYear, Grade, SchoolClass, Student, Subject, Teacher } from '../lib/types'
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Spinner } from '../components/ui'
 import { Field, Input, Modal, Select } from '../components/form'
@@ -116,7 +117,7 @@ export default function ClassesPage() {
   }
 
   const remove = async (cls: SchoolClass) => {
-    if (!confirm(`${t('common.delete')} ${cls.name}?`)) return
+    if (!confirm(`${t('common.delete')} ${localizedName(cls)}?`)) return
     try {
       await api.delete(`/classes/${cls.id}`)
       await load()
@@ -201,19 +202,19 @@ export default function ClassesPage() {
           {classes.map((cls) => (
             <Card key={cls.id} className="p-5">
               <div className="mb-2 flex items-center justify-between">
-                <h3 className="font-semibold text-gray-800">{cls.name}</h3>
+                <h3 className="font-semibold text-gray-800">{localizedName(cls)}</h3>
                 <Badge color={cls.is_active ? 'green' : 'gray'}>
                   {cls.is_active ? t('classes.active') : t('common.archived')}
                 </Badge>
               </div>
               <p className="text-xs text-gray-500">
-                {cls.grade?.name ?? t('classes.noGrade')} · {cls.room ?? '—'} · {t('classes.studentsCount')}: {cls.students_count}
+                {localizedName(cls.grade) ?? t('classes.noGrade')} · {cls.room ?? '—'} · {t('classes.studentsCount')}: {cls.students_count}
               </p>
               {cls.subjects && cls.subjects.length > 0 && (
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {cls.subjects.map((s) => (
                     <span key={s.subject_id} className="rounded-full bg-indigo-50 px-2.5 py-0.5 text-xs font-medium text-indigo-700">
-                      {s.subject_name}
+                      {isArabic() && s.subject_name_ar ? s.subject_name_ar : s.subject_name}
                     </span>
                   ))}
                 </div>
@@ -245,7 +246,7 @@ export default function ClassesPage() {
               <option value="">—</option>
               {grades.map((g) => (
                 <option key={g.id} value={g.id}>
-                  {g.name}
+                  {localizedName(g)}
                 </option>
               ))}
             </Select>
@@ -290,7 +291,7 @@ export default function ClassesPage() {
         </form>
       </Modal>
 
-      <Modal open={subjectsModal !== null} onClose={() => setSubjectsModal(null)} title={`${t('classes.assignSubjects')} — ${subjectsModal?.name ?? ''}`} wide>
+      <Modal open={subjectsModal !== null} onClose={() => setSubjectsModal(null)} title={`${t('classes.assignSubjects')} — ${subjectsModal ? localizedName(subjectsModal) : ''}`} wide>
         {error && <div className="mb-4"><Alert type="error">{error}</Alert></div>}
         <div className="space-y-3">
           {subjectRows.map((row, i) => (
@@ -302,7 +303,7 @@ export default function ClassesPage() {
                 <option value="">{t('classes.subject')}</option>
                 {subjects.map((s) => (
                   <option key={s.id} value={s.id}>
-                    {s.name}
+                    {localizedName(s)}
                   </option>
                 ))}
               </Select>
@@ -354,7 +355,7 @@ export default function ClassesPage() {
         </div>
       </Modal>
 
-      <Modal open={assignModal !== null} onClose={() => setAssignModal(null)} title={`${t('classes.assignStudents')} — ${assignModal?.name ?? ''}`} wide>
+      <Modal open={assignModal !== null} onClose={() => setAssignModal(null)} title={`${t('classes.assignStudents')} — ${assignModal ? localizedName(assignModal) : ''}`} wide>
         {assignStudentsError && <div className="mb-4"><Alert type="error">{assignStudentsError}</Alert></div>}
         <p className="mb-3 text-sm text-gray-500">{t('classes.assignStudentsHint')}</p>
         {studentRows.length === 0 ? (
@@ -376,7 +377,7 @@ export default function ClassesPage() {
               {studentRows.map((s) => (
                 <li key={s.id} className="flex items-center justify-between px-3 py-2">
                   <span className="truncate text-sm text-gray-700">{s.full_name}</span>
-                  <span className="text-xs text-gray-400">{s.class?.name ?? t('classes.noClass')}</span>
+                  <span className="text-xs text-gray-400">{s.class ? localizedName(s.class) : t('classes.noClass')}</span>
                   <input
                     type="checkbox"
                     className="ml-3 h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"

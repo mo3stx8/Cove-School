@@ -90,6 +90,7 @@ class AttendanceController extends Controller
                 'date' => $session->date->toDateString(),
                 'period' => $session->period,
                 'subject' => $session->subject?->name,
+                'subject_ar' => $session->subject?->name_ar,
                 'taken_by' => $session->takenBy?->name,
                 'records' => $records->map(fn ($r) => [
                     'id' => $r->id,
@@ -130,6 +131,14 @@ class AttendanceController extends Controller
             ->with(['record.student', 'requester'])
             ->latest()
             ->paginate($request->integer('per_page', 25));
+
+        $corrections->getCollection()->transform(function (AttendanceCorrection $correction) {
+            $correction->student_name = $correction->record?->student?->fullName()
+                ?? $correction->record?->student?->name
+                ?? $correction->requester?->name;
+
+            return $correction;
+        });
 
         return response()->json(['data' => $corrections]);
     }

@@ -15,11 +15,18 @@ use Spatie\Permission\PermissionRegistrar;
 
 class StudentService
 {
-    public function __construct(private readonly ActivationService $activation) {}
+    public function __construct(
+        private readonly ActivationService $activation,
+        private readonly EmailUniquenessService $emails,
+    ) {}
 
     public function enroll(array $data, School $school, User $actor): Student
     {
-        return DB::transaction(function () use ($data, $school) {
+        $guardianBatches = $this->normalizeGuardianBatches($data);
+
+        $this->assertEmailsUnique($data, $guardianBatches);
+
+        return DB::transaction(function () use ($data, $school, $guardianBatches) {
             $studentUser = $this->createStudentUser($data, $school);
 
             $student = $school->students()->create([
@@ -42,27 +49,6 @@ class StudentService
                 'emergency_contact_phone' => $data['emergency_contact_phone'] ?? null,
                 'medical_notes' => $data['medical_notes'] ?? null,
             ]);
-
-            $guardianBatches = [
-                'father' => $data['father'] ?? null,
-                'mother' => $data['mother'] ?? null,
-            ];
-
-            // Backwards-compatible single-guardian payload (old client).
-            if (! empty($data['guardian']) && is_array($data['guardian'])) {
-                $legacy = $data['guardian'];
-                $guardianBatches['father'] = $guardianBatches['father'] ?? [
-                    'name' => $legacy['guardian_name']
-                        ?? $legacy['father_name']
-                        ?? $legacy['mother_name']
-                        ?? null,
-                    'phone' => $legacy['phone'] ?? null,
-                    'email' => $legacy['email'] ?? null,
-                    'system_email' => $legacy['system_email'] ?? null,
-                    'relationship' => $legacy['relationship'] ?? 'guardian',
-                    'linked_guardian_id' => $legacy['linked_guardian_id'] ?? null,
-                ];
-            }
 
             foreach ($guardianBatches as $type => $guardian) {
                 if (! is_array($guardian) || $this->isEmptyGuardian($guardian)) {
@@ -91,6 +77,65 @@ class StudentService
         AuditLogger::log('student.archived', $student, null, ['status' => 'archived'], $reason);
 
         return $student;
+    }
+
+    /**
+     * Builds the father/mother batches (with legacy single-guardian support)
+     * so the email-uniqueness check can run before any row is written.
+     */
+    protected function normalizeGuardianBatches(array $data): array
+    {
+        $batches = [
+            'father' => $data['father'] ?? null,
+            'mother' => $data['mother'] ?? null,
+        ];
+
+        if (! empty($data['guardian']) && is_array($data['guardian'])) {
+            $legacy = $data['guardian'];
+            $batches['father'] = $batches['father'] ?? [
+                'name' => $legacy['guardian_name']
+                    ?? $legacy['father_name']
+                    ?? $legacy['mother_name']
+                    ?? null,
+                'phone' => $legacy['phone'] ?? null,
+                'email' => $legacy['email'] ?? null,
+                'system_email' => $legacy['system_email'] ?? null,
+                'relationship' => $legacy['relationship'] ?? 'guardian',
+                'linked_guardian_id' => $legacy['linked_guardian_id'] ?? null,
+            ];
+        }
+
+        return $batches;
+    }
+
+    /**
+     * Real emails (student, father, mother) must be unique. Reuse is only
+     * allowed through the explicit "link to existing guardian" flow.
+     */
+    protected function assertEmailsUnique(array $data, array $guardianBatches): void
+    {
+        $candidates = [];
+
+        if (! empty($data['email'])) {
+            $candidates['email'] = $data['email'];
+        }
+
+        foreach (['father', 'mother'] as $type) {
+            $g = $guardianBatches[$type] ?? null;
+            if (! is_array($g) || $this->isEmptyGuardian($g)) {
+                continue;
+            }
+            if (! empty($g['linked_guardian_id'])) {
+                continue;
+            }
+            if (! empty($g['email'])) {
+                $candidates["{$type}.email"] = $g['email'];
+            }
+        }
+
+        if ($candidates !== []) {
+            $this->emails->assertUnique($candidates);
+        }
     }
 
     protected function createStudentUser(array $data, School $school): ?User

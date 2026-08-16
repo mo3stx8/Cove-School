@@ -11,7 +11,7 @@ class Grade extends Model
 {
     use BelongsToSchool;
 
-    protected $fillable = ['school_id', 'name', 'level', 'description', 'is_active'];
+    protected $fillable = ['school_id', 'name', 'name_ar', 'level', 'description', 'is_active'];
 
     protected function casts(): array
     {

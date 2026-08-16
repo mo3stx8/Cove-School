@@ -24,6 +24,11 @@ class NumberGenerator
         return 'INV-'.now()->format('Y').'-'.str_pad(self::nextSequence('student_fees', 'invoice_number', $schoolId), 6, '0', STR_PAD_LEFT);
     }
 
+    public static function feeTypeCode(int $schoolId): string
+    {
+        return 'FT-'.str_pad(self::nextSequence('fee_types', 'code', $schoolId), 4, '0', STR_PAD_LEFT);
+    }
+
     public static function receiptNumber(int $schoolId): string
     {
         return 'REC-'.now()->format('Y').'-'.str_pad(self::nextSequence('fee_payments', 'receipt_number', $schoolId), 6, '0', STR_PAD_LEFT);

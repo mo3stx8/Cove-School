@@ -111,6 +111,7 @@ class ReportController extends Controller
 
             return [
                 'subject' => $es->subject?->name,
+                'subject_ar' => $es->subject?->name_ar,
                 'class' => $es->class?->name,
                 'exam' => $es->exam?->name,
                 'average' => $marks->isEmpty() ? 0 : round($marks->avg(), 2),
