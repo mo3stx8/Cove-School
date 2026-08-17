@@ -3,8 +3,8 @@ Cove School (SiliconCove-SMS) is a full-stack School Management System built for
 
 Architecture:
 - Backend: Laravel 12 (PHP) with a REST JSON API under /api/v1, PostgreSQL database, Sanctum token authentication, and SQLite-backed automated tests.
-- Frontend: React 18 + TypeScript + Vite single-page application with react-i18next for EN/AR localization (RTL included), Tailwind CSS UI kit, and Axios API client.
-- Roles: Super Admin, Admin, Teacher, Student, and Parent, each with its own dashboard and permission scopes.
+- Frontend: React 19 + TypeScript + Vite single-page application with react-i18next for EN/AR localization (RTL included), Tailwind CSS v4 UI kit, and Axios API client.
+- Roles: Super Admin, Admin, Teacher, Accountant, Student, and Parent, each with its own dashboard and permission scopes.
 
 Core modules:
 - School onboarding wizard (school profile, admin account, academic year, terms, grade scale, first grade/subject, fee type).
@@ -14,15 +14,22 @@ Core modules:
 - Attendance: per-class sessions with present/absent/late/excused marking and correction requests showing student names.
 - Exams & grading: exams per class/subject, marks entry, submit/review/publish workflow, letter-grade scale, report cards, and subject averages.
 - Assignments: publish per class/subject with due dates and student submissions.
-- Fees & finance: auto-generated fee type codes (e.g. FT-0001), invoice generation, statuses (paid/partial/unpaid/overdue/cancelled), and search/filtering.
+- Fees & finance: auto-generated fee type codes (e.g. FT-0001), invoice generation, statuses (paid/partial/unpaid/overdue/cancelled), due date management with automatic overdue detection, and search/filtering.
 - Timetable & notifications: weekly period timetable with conflict detection, in-app notification feed.
-- Reports: subject averages, finance overview, student attendance rates, latest results.
+- Reports: subject averages, finance overview, student attendance rates, latest results, CSV export.
+
+Completed phases:
+- Phase 1-9: Core platform build (backend API, frontend SPA, auth, all modules).
+- Phase 10: Security hardening (IDOR protection, rate limiting, audit logging, file upload restrictions).
+- Admin account management: user CRUD, role assignment, activation flow, profile editing, password management, archive/restore, phone validation, Arabic name support.
+- Fee module: search/filter focus fixes, invoice status auto-recalculation on due date edit, styled confirmation modals for delete and cancel actions, auto-generated fee type codes.
 
 Key features:
 - Bilingual naming: grades, subjects, and classes carry both an English name and an Arabic name, displayed according to the active UI language.
 - Simple, localized date/time formatting throughout (no ISO timestamps shown to users).
 - Fee-type and invoice search by name/code/student ID with status filters.
 - Email activation flow for admin-created user accounts via Gmail SMTP.
+- Styled confirmation modals (Tailwind) replacing native browser dialogs.
 
 Copyrights for Aogolo.
 SiliconCove Company.
