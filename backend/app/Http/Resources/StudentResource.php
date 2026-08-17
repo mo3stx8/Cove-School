@@ -14,9 +14,11 @@ class StudentResource extends JsonResource
             'student_number' => $this->student_number,
             'admission_number' => $this->admission_number,
             'first_name' => $this->first_name,
+            'first_name_ar' => $this->first_name_ar,
             'middle_name' => $this->middle_name,
             'last_name' => $this->last_name,
             'full_name' => $this->fullName(),
+            'full_name_ar' => $this->fullNameAr(),
             'date_of_birth' => $this->date_of_birth?->toDateString(),
             'gender' => $this->gender,
             'nationality' => $this->nationality,
@@ -30,6 +32,7 @@ class StudentResource extends JsonResource
             'class' => $this->whenLoaded('class', fn () => [
                 'id' => $this->class->id,
                 'name' => $this->class->name,
+                'name_ar' => $this->class->name_ar,
             ]),
             'user_id' => $this->user_id,
             'user' => $this->whenLoaded('user', fn () => [

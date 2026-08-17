@@ -210,7 +210,7 @@ export default function ExamsPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Badge color={statusColor(es.status)}>{es.status}</Badge>
+                          <Badge color={statusColor(es.status)}>{t('exams.' + es.status)}</Badge>
                           <Button variant="secondary" size="sm" onClick={() => void openMarks(es)}>
                             {t('exams.enterMarks')}
                           </Button>

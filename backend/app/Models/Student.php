@@ -16,7 +16,7 @@ class Student extends Model
 
     protected $fillable = [
         'school_id', 'user_id', 'student_number', 'admission_number', 'first_name',
-        'middle_name', 'last_name', 'date_of_birth', 'gender', 'nationality',
+        'first_name_ar', 'middle_name', 'last_name', 'date_of_birth', 'gender', 'nationality',
         'photo', 'address', 'status', 'enrollment_date', 'class_id',
         'emergency_contact_name', 'emergency_contact_relationship',
         'emergency_contact_phone', 'medical_notes',
@@ -84,6 +84,11 @@ class Student extends Model
             $this->middle_name,
             $this->last_name,
         ])));
+    }
+
+    public function fullNameAr(): string
+    {
+        return $this->first_name_ar ?? $this->fullName();
     }
 
     public function attendanceRate(?string $start = null, ?string $end = null): float

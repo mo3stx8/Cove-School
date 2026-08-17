@@ -2,6 +2,8 @@ export interface User {
   id: number
   school_id: number
   name: string
+  name_ar: string | null
+  gender: 'male' | 'female' | null
   system_email: string | null
   email: string | null
   phone: string | null
@@ -131,9 +133,11 @@ export interface Student {
   student_number: string
   admission_number: string
   first_name: string
+  first_name_ar: string | null
   middle_name: string | null
   last_name: string
   full_name: string
+  full_name_ar: string | null
   date_of_birth: string | null
   gender: 'male' | 'female' | null
   nationality: string | null
@@ -144,7 +148,7 @@ export interface Student {
   emergency_contact_relationship: string | null
   emergency_contact_phone: string | null
   class_id: number | null
-  class?: { id: number; name: string } | null
+  class?: { id: number; name: string; name_ar?: string | null } | null
   user_id: number | null
   user?: { id: number; name: string; system_email: string | null; email: string; phone: string } | null
   guardians?: Guardian[] | null
@@ -160,8 +164,8 @@ export interface Teacher {
   joining_date: string | null
   status: 'active' | 'archived'
   user_id: number
-  user: { id: number; name: string; system_email: string | null; email: string; phone: string | null } | null
-  subjects?: { class_id: number; class_name: string; subject_id: number; subject_name: string }[]
+  user: { id: number; name: string; name_ar: string | null; gender: string | null; system_email: string | null; email: string; phone: string | null } | null
+  subjects?: { class_id: number; class_name: string; class_name_ar?: string | null; subject_id: number; subject_name: string; subject_name_ar?: string | null }[]
 }
 
 export interface SchoolClass {

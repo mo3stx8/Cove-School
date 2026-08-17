@@ -29,6 +29,7 @@ export default function FeesPage() {
   const [years, setYears] = useState<AcademicYear[]>([])
   const [terms, setTerms] = useState<Term[]>([])
   const [loading, setLoading] = useState(true)
+  const [searching, setSearching] = useState(false)
 
   const [invoiceOpen, setInvoiceOpen] = useState(false)
   const [invoiceForm, setInvoiceForm] = useState({ student_id: '', fee_type_id: '', academic_year_id: '', term_id: '', title: '', amount: '', discount_amount: '', due_date: '' })
@@ -37,14 +38,16 @@ export default function FeesPage() {
 
   const [feeTypeOpen, setFeeTypeOpen] = useState(false)
   const [feeTypeEditing, setFeeTypeEditing] = useState<FeeType | null>(null)
-  const [feeTypeForm, setFeeTypeForm] = useState({ name: '', code: '', amount: '', frequency: 'term', description: '', is_active: true })
+  const [feeTypeForm, setFeeTypeForm] = useState({ name: '', amount: '', frequency: 'term', description: '', is_active: true })
 
   const [payFor, setPayFor] = useState<Invoice | null>(null)
+  const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null)
   const [payForm, setPayForm] = useState({ amount: '', payment_method: 'cash', reference: '', notes: '' })
   const [paySaving, setPaySaving] = useState(false)
 
   const load = useCallback(async () => {
-    setLoading(true)
+    if (invoices.length === 0) setLoading(true)
+    else setSearching(true)
     try {
       const [inv, ft] = await Promise.all([
         api.get<{ data: unknown }>('/invoices', {
@@ -66,6 +69,7 @@ export default function FeesPage() {
       // ignore
     } finally {
       setLoading(false)
+      setSearching(false)
     }
   }, [invPage, invSearch, invStatus])
 
@@ -74,7 +78,8 @@ export default function FeesPage() {
   }, [load])
 
   const loadPayments = useCallback(async () => {
-    setLoading(true)
+    if (payments.length === 0) setLoading(true)
+    else setSearching(true)
     try {
       const res = await api.get<{ data: unknown }>('/payments', { params: { per_page: 25, page: payPage, search: paySearch || undefined } })
       setPayments(unwrapList<FeePayment>(res.data))
@@ -84,6 +89,7 @@ export default function FeesPage() {
       setPayments([])
     } finally {
       setLoading(false)
+      setSearching(false)
     }
   }, [payPage, paySearch])
 
@@ -120,7 +126,7 @@ export default function FeesPage() {
     setSaving(true)
     setError('')
     try {
-      await api.post('/invoices', {
+      const payload = {
         student_id: Number(invoiceForm.student_id),
         fee_type_id: invoiceForm.fee_type_id ? Number(invoiceForm.fee_type_id) : undefined,
         academic_year_id: invoiceForm.academic_year_id ? Number(invoiceForm.academic_year_id) : undefined,
@@ -129,8 +135,14 @@ export default function FeesPage() {
         amount: Number(invoiceForm.amount),
         discount_amount: invoiceForm.discount_amount ? Number(invoiceForm.discount_amount) : 0,
         due_date: invoiceForm.due_date || undefined,
-      })
+      }
+      if (editingInvoice) {
+        await api.put(`/invoices/${editingInvoice.id}`, payload)
+      } else {
+        await api.post('/invoices', payload)
+      }
       setInvoiceOpen(false)
+      setEditingInvoice(null)
       await load()
     } catch (err) {
       setError(errorMessage(err))
@@ -143,8 +155,8 @@ export default function FeesPage() {
     setFeeTypeEditing(ft ?? null)
     setFeeTypeForm(
       ft
-        ? { name: ft.name, code: ft.code ?? '', amount: String(ft.amount), frequency: ft.frequency, description: ft.description ?? '', is_active: Boolean(ft.is_active) }
-        : { name: '', code: '', amount: '', frequency: 'term', description: '', is_active: true },
+        ? { name: ft.name, amount: String(ft.amount), frequency: ft.frequency, description: ft.description ?? '', is_active: Boolean(ft.is_active) }
+        : { name: '', amount: '', frequency: 'term', description: '', is_active: true },
     )
     setError('')
     setFeeTypeOpen(true)
@@ -177,10 +189,53 @@ export default function FeesPage() {
     }
   }
 
+  const [deleteConfirmFt, setDeleteConfirmFt] = useState<FeeType | null>(null)
+  const [cancelConfirmInv, setCancelConfirmInv] = useState<Invoice | null>(null)
+
+  const deleteFeeType = async () => {
+    if (!deleteConfirmFt) return
+    setError('')
+    try {
+      await api.delete(`/fee-types/${deleteConfirmFt.id}`)
+      setDeleteConfirmFt(null)
+      await load()
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+
+  const cancelInvoice = async () => {
+    if (!cancelConfirmInv) return
+    setError('')
+    try {
+      await api.post(`/invoices/${cancelConfirmInv.id}/cancel`)
+      setCancelConfirmInv(null)
+      await load()
+    } catch (err) {
+      setError(errorMessage(err))
+    }
+  }
+
   const openPay = (invoice: Invoice) => {
     setError('')
     setPayFor(invoice)
     setPayForm({ amount: String(invoice.amount - (invoice.discount_amount ?? 0)), payment_method: 'cash', reference: '', notes: '' })
+  }
+
+  const openEditInvoice = (inv: Invoice) => {
+    setEditingInvoice(inv)
+    setInvoiceForm({
+      student_id: String(inv.student_id),
+      fee_type_id: inv.fee_type_id ? String(inv.fee_type_id) : '',
+      academic_year_id: '',
+      term_id: '',
+      title: inv.title,
+      amount: String(inv.amount),
+      discount_amount: inv.discount_amount ? String(inv.discount_amount) : '',
+      due_date: inv.due_date?.slice(0, 10) ?? '',
+    })
+    setError('')
+    setInvoiceOpen(true)
   }
 
   const submitPayment = async (e: React.FormEvent) => {
@@ -245,6 +300,53 @@ export default function FeesPage() {
 
       {error && <div className="mb-4"><Alert type="error">{error}</Alert></div>}
 
+      {section === 'invoices' && (
+        <Card className="mb-4 flex flex-wrap items-center gap-3 p-3">
+          <Input
+            placeholder={t('fees.searchInvoices')}
+            value={invSearch}
+            onChange={(e) => {
+              setInvSearch(e.target.value)
+              setInvPage(1)
+            }}
+            className="max-w-md"
+          />
+          <Select value={invStatus} onChange={(e) => { setInvStatus(e.target.value); setInvPage(1) }} className="w-44">
+            <option value="">{t('fees.statusAll')}</option>
+            <option value="unpaid">{t('fees.unpaid')}</option>
+            <option value="partial">{t('fees.partial')}</option>
+            <option value="paid">{t('fees.paid')}</option>
+            <option value="overdue">{t('fees.overdue')}</option>
+            <option value="cancelled">{t('fees.cancelled')}</option>
+          </Select>
+        </Card>
+      )}
+
+      {section === 'payments' && (
+        <Card className="mb-4 p-3">
+          <Input
+            placeholder={t('fees.searchPayments')}
+            value={paySearch}
+            onChange={(e) => {
+              setPaySearch(e.target.value)
+              setPayPage(1)
+            }}
+            className="max-w-md"
+          />
+        </Card>
+      )}
+
+      {section === 'feeTypes' && (
+        <Card className="mb-4 p-3">
+          <Input
+            placeholder={t('fees.searchFeeTypes')}
+            value={feeTypeSearch}
+            onChange={(e) => setFeeTypeSearch(e.target.value)}
+            className="max-w-md"
+          />
+        </Card>
+      )}
+
       {loading ? (
         <Spinner />
       ) : section === 'invoices' ? (
@@ -252,25 +354,6 @@ export default function FeesPage() {
           <EmptyState message={t('common.noData')} />
         ) : (
           <>
-            <Card className="mb-4 flex flex-wrap items-center gap-3 p-3">
-              <Input
-                placeholder={t('fees.searchInvoices')}
-                value={invSearch}
-                onChange={(e) => {
-                  setInvSearch(e.target.value)
-                  setInvPage(1)
-                }}
-                className="max-w-md"
-              />
-              <Select value={invStatus} onChange={(e) => { setInvStatus(e.target.value); setInvPage(1) }} className="w-44">
-                <option value="">{t('fees.statusAll')}</option>
-                <option value="unpaid">{t('fees.unpaid')}</option>
-                <option value="partial">{t('fees.partial')}</option>
-                <option value="paid">{t('fees.paid')}</option>
-                <option value="overdue">{t('fees.overdue')}</option>
-                <option value="cancelled">{t('fees.cancelled')}</option>
-              </Select>
-            </Card>
             <Card>
               <Table
                 headers={[t('fees.invoiceNumber'), t('fees.student'), t('fees.invoiceTitle'), t('fees.amount'), t('fees.status'), t('common.actions')]}
@@ -287,14 +370,26 @@ export default function FeesPage() {
                       {inv.discount_amount > 0 && <span className="ml-1 text-xs text-red-500">−{inv.discount_amount.toFixed(2)}</span>}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge color={invoiceStatus(inv.status)}>{inv.status}</Badge>
+                      <Badge color={invoiceStatus(inv.status)}>{t(`fees.${inv.status}`)}</Badge>
                     </td>
                     <td className="px-4 py-3">
-                      {inv.status !== 'cancelled' && inv.status !== 'paid' && (
-                        <Button size="sm" onClick={() => openPay(inv)}>
-                          {t('fees.addPayment')}
-                        </Button>
-                      )}
+                      <div className="flex gap-2">
+                        {inv.status !== 'cancelled' && inv.status !== 'paid' && (
+                          <Button size="sm" onClick={() => openPay(inv)}>
+                            {t('fees.addPayment')}
+                          </Button>
+                        )}
+                        {inv.status !== 'cancelled' && inv.status !== 'paid' && (
+                          <Button variant="secondary" size="sm" onClick={() => openEditInvoice(inv)}>
+                            {t('common.edit')}
+                          </Button>
+                        )}
+                        {inv.status !== 'cancelled' && inv.status !== 'paid' && (
+                          <Button variant="danger" size="sm" onClick={() => setCancelConfirmInv(inv)}>
+                            {t('common.cancel')}
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -310,17 +405,6 @@ export default function FeesPage() {
           <EmptyState message={t('common.noData')} />
         ) : (
           <>
-            <Card className="mb-4 p-3">
-              <Input
-                placeholder={t('fees.searchPayments')}
-                value={paySearch}
-                onChange={(e) => {
-                  setPaySearch(e.target.value)
-                  setPayPage(1)
-                }}
-                className="max-w-md"
-              />
-            </Card>
             <Card>
               <Table
                 headers={[t('fees.receiptNumber'), t('fees.student'), t('fees.invoiceNumber'), t('fees.amount'), t('fees.method'), t('fees.paidAt'), t('common.actions')]}
@@ -334,7 +418,7 @@ export default function FeesPage() {
                     <td className="px-4 py-3 font-mono text-xs text-gray-600">{p.studentFee?.invoice_number ?? `#${p.student_fee_id}`}</td>
                     <td className="px-4 py-3 font-semibold text-emerald-700">{p.amount.toFixed(2)}</td>
                     <td className="px-4 py-3">
-                      <Badge color="indigo">{p.payment_method}</Badge>
+                      <Badge color="indigo">{t('fees.' + p.payment_method)}</Badge>
                     </td>
                     <td className="px-4 py-3 text-gray-600">{new Date(p.paid_at).toLocaleString()}</td>
                     <td className="px-4 py-3">
@@ -353,14 +437,6 @@ export default function FeesPage() {
         )
       ) : (
         <div>
-          <Card className="mb-4 p-3">
-            <Input
-              placeholder={t('fees.searchFeeTypes')}
-              value={feeTypeSearch}
-              onChange={(e) => setFeeTypeSearch(e.target.value)}
-              className="max-w-md"
-            />
-          </Card>
           {filteredFeeTypes.length === 0 ? (
             <EmptyState message={t('common.noData')} />
           ) : (
@@ -371,14 +447,19 @@ export default function FeesPage() {
                     <h3 className="font-semibold text-gray-800">{ft.name}</h3>
                     <Badge color={ft.is_active ? 'green' : 'gray'}>{ft.is_active ? t('classes.active') : t('common.archived')}</Badge>
                   </div>
-                  <p className="mt-1 font-mono text-sm text-gray-500">{ft.code}</p>
+                  {ft.code && <p className="mt-1 font-mono text-xs text-gray-500">{ft.code}</p>}
                   <p className="mt-2 text-lg font-semibold text-gray-900">{Number(ft.amount).toFixed(2)}</p>
-                  <Badge color="indigo">{ft.frequency}</Badge>
+                  <Badge color="indigo">{t('fees.' + ft.frequency)}</Badge>
                   {ft.description && <p className="mt-2 text-xs text-gray-500">{ft.description}</p>}
                   <div className="mt-4">
-                    <Button variant="secondary" size="sm" onClick={() => openFeeType(ft)}>
-                      {t('common.edit')}
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button variant="secondary" size="sm" onClick={() => openFeeType(ft)}>
+                        {t('common.edit')}
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => setDeleteConfirmFt(ft)}>
+                        {t('common.delete')}
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               ))}
@@ -387,7 +468,7 @@ export default function FeesPage() {
         </div>
       )}
 
-      <Modal open={invoiceOpen} onClose={() => setInvoiceOpen(false)} title={t('fees.addInvoice')} wide>
+      <Modal open={invoiceOpen} onClose={() => { setInvoiceOpen(false); setEditingInvoice(null); setInvoiceForm({ student_id: '', fee_type_id: '', academic_year_id: '', term_id: '', title: '', amount: '', discount_amount: '', due_date: '' }); setError('') }} title={editingInvoice ? t('common.edit') + ' ' + t('fees.invoiceNumber') : t('fees.addInvoice')} wide>
         {error && <div className="mb-4"><Alert type="error">{error}</Alert></div>}
         <form onSubmit={(e) => void createInvoice(e)} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={t('fees.student')} required>
@@ -403,7 +484,7 @@ export default function FeesPage() {
           <Field label={t('fees.feeType')}>
             <Select value={invoiceForm.fee_type_id} onChange={(e) => setInvoiceForm({ ...invoiceForm, fee_type_id: e.target.value })}>
               <option value="">—</option>
-              {feeTypes.map((ft) => (
+              {feeTypes.filter((ft) => ft.is_active !== false).map((ft) => (
                 <option key={ft.id} value={ft.id}>
                   {ft.name}
                 </option>
@@ -474,13 +555,6 @@ export default function FeesPage() {
           <Field label={t('fees.name')} required>
             <Input value={feeTypeForm.name} onChange={(e) => setFeeTypeForm({ ...feeTypeForm, name: e.target.value })} required />
           </Field>
-          <Field label={t('fees.code')}>
-            {feeTypeEditing ? (
-              <Input value={feeTypeForm.code} disabled />
-            ) : (
-              <p className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-400">{t('fees.codeAuto')}</p>
-            )}
-          </Field>
           <Field label={t('fees.amount')} required>
             <Input type="number" min={0} step="0.01" value={feeTypeForm.amount} onChange={(e) => setFeeTypeForm({ ...feeTypeForm, amount: e.target.value })} required />
           </Field>
@@ -529,10 +603,10 @@ export default function FeesPage() {
             </Field>
             <Field label={t('fees.method')} required>
               <Select value={payForm.payment_method} onChange={(e) => setPayForm({ ...payForm, payment_method: e.target.value })}>
-                <option value="cash">cash</option>
-                <option value="card">card</option>
-                <option value="bank">bank</option>
-                <option value="online">online</option>
+                <option value="cash">{t('fees.cash')}</option>
+                <option value="card">{t('fees.card')}</option>
+                <option value="bank">{t('fees.bank')}</option>
+                <option value="online">{t('fees.online')}</option>
               </Select>
             </Field>
             <Field label={t('fees.reference')}>
@@ -551,6 +625,34 @@ export default function FeesPage() {
             </div>
           </form>
         )}
+      </Modal>
+
+      <Modal open={deleteConfirmFt !== null} onClose={() => setDeleteConfirmFt(null)} title={t('common.delete')} centered>
+        <p className="text-sm text-gray-600">
+          {t('common.confirm')} <strong>{deleteConfirmFt?.name}</strong>?
+        </p>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setDeleteConfirmFt(null)}>
+            {t('common.cancel')}
+          </Button>
+          <Button variant="danger" onClick={() => void deleteFeeType()}>
+            {t('common.delete')}
+          </Button>
+        </div>
+      </Modal>
+
+      <Modal open={cancelConfirmInv !== null} onClose={() => setCancelConfirmInv(null)} title={t('common.cancel')} centered>
+        <p className="text-sm text-gray-600">
+          {t('common.confirm')} <strong>{cancelConfirmInv?.invoice_number}</strong>?
+        </p>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="secondary" onClick={() => setCancelConfirmInv(null)}>
+            {t('common.cancel')}
+          </Button>
+          <Button variant="danger" onClick={() => void cancelInvoice()}>
+            {t('common.cancel')}
+          </Button>
+        </div>
       </Modal>
     </div>
   )

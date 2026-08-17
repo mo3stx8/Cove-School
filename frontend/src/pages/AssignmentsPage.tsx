@@ -49,11 +49,14 @@ export default function AssignmentsPage() {
   const [submissions, setSubmissions] = useState<AssignmentSubmission[]>([])
   const [gradeRows, setGradeRows] = useState<Record<number, { grade: string; feedback: string }>>({})
   const [gradeSaving, setGradeSaving] = useState(false)
+  const [filterClass, setFilterClass] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await api.get<{ data: unknown }>('/assignments', { params: { per_page: 25, page } })
+      const params: Record<string, unknown> = { per_page: 25, page }
+      if (filterClass) params.class_id = filterClass
+      const res = await api.get<{ data: unknown }>('/assignments', { params })
       setAssignments(unwrapList<Assignment>(res.data))
       const meta = listMeta(res.data)
       setLastPage(meta.last_page)
@@ -63,7 +66,7 @@ export default function AssignmentsPage() {
     } finally {
       setLoading(false)
     }
-  }, [page])
+  }, [page, filterClass])
 
   useEffect(() => {
     void load()
@@ -183,6 +186,17 @@ export default function AssignmentsPage() {
 
       {error && <div className="mb-4"><Alert type="error">{error}</Alert></div>}
 
+      <Card className="mb-4 p-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <Select value={filterClass} onChange={(e) => { setFilterClass(e.target.value); setPage(1) }} className="w-44">
+            <option value="">{t('assignments.class')}</option>
+            {classes.map((c) => (
+              <option key={c.id} value={c.id}>{localizedName(c)}</option>
+            ))}
+          </Select>
+        </div>
+      </Card>
+
       {loading ? (
         <Spinner />
       ) : assignments.length === 0 ? (
@@ -204,7 +218,7 @@ export default function AssignmentsPage() {
                   </td>
                   <td className="px-4 py-3 text-gray-600">{a.submissions_count ?? 0}</td>
                   <td className="px-4 py-3">
-                    <Badge color={a.status === 'published' ? 'green' : 'gray'}>{a.status}</Badge>
+                    <Badge color={a.status === 'published' ? 'green' : 'gray'}>{t('assignments.' + a.status)}</Badge>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../lib/api'
+import { localizedName } from '../lib/format'
 import type {
   AccountantDashboard,
   AdminDashboard,
@@ -54,8 +55,8 @@ function StatCard({ label, value, icon, color }: { label: string; value: string 
           </svg>
         </div>
         <div className="min-w-0">
-          <p className="truncate text-xs font-medium text-gray-500">{label}</p>
-          <p className="truncate text-lg font-semibold text-gray-900 sm:text-xl">{value}</p>
+          <p className="text-xs font-medium text-gray-500">{label}</p>
+          <p className="text-lg font-semibold text-gray-900 sm:text-xl">{value}</p>
         </div>
       </div>
     </Card>
@@ -81,21 +82,21 @@ function AdminView({ data }: { data: AdminDashboard }) {
         <Card className="p-5">
           <h3 className="mb-3 text-sm font-semibold text-gray-700">{t('dashboard.studentsByGrade')}</h3>
           <div className="space-y-2">
-            {Object.entries(data.students_by_grade).map(([grade, count]) => (
-              <div key={grade} className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">{grade}</span>
+            {data.students_by_grade.map((item: { name: string; name_ar?: string | null; count: number }) => (
+              <div key={item.name} className="flex items-center justify-between text-sm">
+                <span className="text-gray-600">{localizedName(item)}</span>
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-32 overflow-hidden rounded bg-gray-100">
                     <div
                       className="h-full rounded bg-indigo-600"
-                      style={{ width: `${Math.min(100, (count / Math.max(1, Math.max(...Object.values(data.students_by_grade), 1))) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (item.count / Math.max(1, ...data.students_by_grade.map((g: { count: number }) => g.count), 1)) * 100)}%` }}
                     />
                   </div>
-                  <span className="w-6 text-end font-medium">{count}</span>
+                  <span className="w-6 text-end font-medium">{item.count}</span>
                 </div>
               </div>
             ))}
-            {Object.keys(data.students_by_grade).length === 0 && (
+            {data.students_by_grade.length === 0 && (
               <p className="text-sm text-gray-400">{t('common.noData')}</p>
             )}
           </div>

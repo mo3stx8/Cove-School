@@ -37,9 +37,10 @@ interface Props {
   title: string
   value: ParentForm
   onChange: (next: ParentForm) => void
+  required?: boolean
 }
 
-export default function ParentSection({ role, title, value, onChange }: Props) {
+export default function ParentSection({ role, title, value, onChange, required }: Props) {
   const { t } = useTranslation()
   const valueRef = useRef(value)
   valueRef.current = value
@@ -106,11 +107,11 @@ export default function ParentSection({ role, title, value, onChange }: Props) {
     <div className="col-span-full rounded-lg border border-gray-200 bg-gray-50/50 p-4">
       <h4 className="mb-3 text-sm font-semibold text-gray-700">{title}</h4>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label={t('students.parentName')}>
-          <Input value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} />
+        <Field label={t('students.parentName')} required={required}>
+          <Input value={value.name} onChange={(e) => onChange({ ...value, name: e.target.value })} required={required} />
         </Field>
-        <Field label={t('students.parentPhone')}>
-          <Input value={value.phone} onChange={(e) => onChange({ ...value, phone: e.target.value })} />
+        <Field label={t('students.parentPhone')} required={required}>
+          <Input inputMode="numeric" value={value.phone} onChange={(e) => onChange({ ...value, phone: e.target.value.replace(/[^0-9]/g, '') })} required={required} />
         </Field>
         <Field label={t('students.parentEmail')}>
           <Input

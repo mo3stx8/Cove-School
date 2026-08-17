@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, downloadBlob, errorMessage } from '../lib/api'
+import { localizedName } from '../lib/format'
 import { Alert, Button, Card, EmptyState, PageHeader, Spinner, Table } from '../components/ui'
 import { Field, Input } from '../components/form'
 
@@ -11,7 +12,7 @@ interface StudentsReport {
   active: number
   inactive: number
   archived: number
-  by_grade: Record<string, number>
+  by_grade: { name: string; name_ar?: string | null; count: number }[]
   new_admissions_this_month: number
 }
 
@@ -21,7 +22,7 @@ interface AttendanceReport {
 }
 
 interface AcademicReport {
-  subject_averages: { subject: string | null; class: string | null; exam: string | null; average: number; full_marks: number; students: number }[]
+  subject_averages: { name: string | null; name_ar?: string | null; class: string | null; class_ar?: string | null; grade?: string | null; grade_ar?: string | null; exam: string | null; average: number; full_marks: number; students: number }[]
 }
 
 interface FinanceReport {
@@ -180,18 +181,18 @@ export default function ReportsPage() {
             </div>
             <Card className="mt-6 p-5">
               <h3 className="mb-3 text-sm font-semibold text-gray-700">{t('reports.byGrade')}</h3>
-              {Object.keys(students.by_grade).length === 0 ? (
+              {students.by_grade.length === 0 ? (
                 <p className="text-sm text-gray-400">{t('common.noData')}</p>
               ) : (
                 <div className="space-y-2">
-                  {Object.entries(students.by_grade).map(([grade, count]) => (
-                    <div key={grade} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-600">{grade}</span>
+                  {students.by_grade.map((item) => (
+                    <div key={item.name} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600">{localizedName(item)}</span>
                       <div className="flex items-center gap-2">
                         <div className="h-2 w-40 overflow-hidden rounded bg-gray-100">
-                          <div className="h-full rounded bg-indigo-600" style={{ width: `${Math.min(100, (count / Math.max(1, students.active)) * 100)}%` }} />
+                          <div className="h-full rounded bg-indigo-600" style={{ width: `${Math.min(100, (item.count / Math.max(1, students.active)) * 100)}%` }} />
                         </div>
-                        <span className="w-6 text-end font-medium">{count}</span>
+                        <span className="w-6 text-end font-medium">{item.count}</span>
                       </div>
                     </div>
                   ))}
@@ -242,8 +243,8 @@ export default function ReportsPage() {
             <Table headers={[t('academic.subjectName'), t('classes.title'), t('exams.title'), t('reports.average'), t('exams.fullMarks'), t('reports.students')]}>
               {academic.subject_averages.map((row, i) => (
                 <tr key={i} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900">{row.subject ?? '—'}</td>
-                  <td className="px-4 py-3 text-gray-600">{row.class ?? '—'}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">{localizedName(row)}</td>
+                  <td className="px-4 py-3 text-gray-600">{localizedName({ name: row.class, name_ar: row.class_ar }) || '—'}</td>
                   <td className="px-4 py-3 text-gray-600">{row.exam ?? '—'}</td>
                   <td className="px-4 py-3 font-semibold text-gray-800">{row.average.toFixed(2)}</td>
                   <td className="px-4 py-3 text-gray-600">{row.full_marks}</td>

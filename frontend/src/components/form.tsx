@@ -35,7 +35,7 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
 
 export function Select({ className, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select className={cn(baseInput, 'appearance-none pr-8', className)} {...props}>
+    <select className={cn(baseInput, 'appearance-none pe-8', className)} {...props}>
       {children}
     </select>
   )
@@ -51,16 +51,18 @@ export function Modal({
   title,
   children,
   wide,
+  centered,
 }: {
   open: boolean
   onClose: () => void
   title: string
   children: ReactNode
   wide?: boolean
+  centered?: boolean
 }) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 py-10">
+    <div className={cn('fixed inset-0 z-50 flex justify-center bg-black/40 p-4', centered ? 'items-center' : 'items-start overflow-y-auto py-10')}>
       <div
         className={cn(
           'w-full rounded-xl bg-white shadow-xl',

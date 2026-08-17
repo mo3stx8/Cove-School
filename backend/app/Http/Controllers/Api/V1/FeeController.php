@@ -79,6 +79,20 @@ class FeeController extends Controller
         return response()->json(['data' => $feeType]);
     }
 
+    public function destroyFeeType(FeeType $feeType)
+    {
+        Gate::authorize('delete', FeeType::class);
+
+        if ($feeType->studentFees()->exists()) {
+            return response()->json(['message' => 'Cannot delete fee type with existing invoices. Deactivate it instead.'], 422);
+        }
+
+        $feeType->delete();
+        AuditLogger::log('fee_type.deleted', $feeType);
+
+        return response()->json(['message' => 'Fee type deleted.']);
+    }
+
     // ---- Student fees (invoices) ----
 
     public function invoices(Request $request)
@@ -86,6 +100,21 @@ class FeeController extends Controller
         Gate::authorize('viewAny', StudentFee::class);
 
         $user = $request->user();
+        $school = app(TenantContext::class)->school();
+
+        // Auto-move unpaid invoices past due date + 3 months to overdue
+        StudentFee::forSchool($school->id)
+            ->where('status', 'unpaid')
+            ->whereNotNull('due_date')
+            ->where('due_date', '<=', now()->subMonths(3)->toDateString())
+            ->update(['status' => 'overdue']);
+
+        // Move overdue back to unpaid if due_date + 3 months is still in the future
+        StudentFee::forSchool($school->id)
+            ->where('status', 'overdue')
+            ->whereNotNull('due_date')
+            ->where('due_date', '>', now()->subMonths(3)->toDateString())
+            ->update(['status' => 'unpaid']);
 
         $query = StudentFee::query()
             ->with(['student', 'feeType', 'term'])
@@ -151,6 +180,45 @@ class FeeController extends Controller
         Gate::authorize('view', $studentFee);
 
         $studentFee->load(['student.class.grade', 'feeType', 'term', 'payments.receivedBy']);
+
+        return response()->json(['data' => $studentFee]);
+    }
+
+    public function updateInvoice(Request $request, StudentFee $studentFee)
+    {
+        Gate::authorize('update', $studentFee);
+
+        $data = $request->validate([
+            'title' => ['sometimes', 'string', 'max:255'],
+            'amount' => ['sometimes', 'numeric', 'min:0'],
+            'discount_amount' => ['sometimes', 'numeric', 'min:0'],
+            'discount_reason' => ['nullable', 'string', 'max:500'],
+            'due_date' => ['nullable', 'date'],
+        ]);
+
+        $studentFee->update($data);
+
+        // Recalculate status when due_date changes
+        if (array_key_exists('due_date', $data) && $studentFee->status !== 'cancelled' && $studentFee->status !== 'paid') {
+            $dueDate = $studentFee->due_date;
+            if ($dueDate && $dueDate->copy()->addMonths(3)->isPast()) {
+                $studentFee->update(['status' => 'overdue']);
+            } elseif ($dueDate && $dueDate->copy()->addMonths(3)->isFuture()) {
+                $studentFee->update(['status' => 'unpaid']);
+            }
+        }
+
+        AuditLogger::log('invoice.updated', $studentFee);
+
+        return response()->json(['data' => $studentFee->load('student', 'feeType', 'term')]);
+    }
+
+    public function cancelInvoice(StudentFee $studentFee)
+    {
+        Gate::authorize('update', $studentFee);
+
+        $studentFee->update(['status' => 'cancelled']);
+        AuditLogger::log('invoice.cancelled', $studentFee);
 
         return response()->json(['data' => $studentFee]);
     }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, errorMessage } from '../lib/api'
+import { localizedName } from '../lib/format'
 import type { AttendanceRow, AttendanceStatus, SchoolClass } from '../lib/types'
 import { useAuth } from '../context/AuthContext'
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Spinner } from '../components/ui'
@@ -194,7 +195,7 @@ export default function AttendancePage() {
                 <option value="">—</option>
                 {classes.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name}
+                    {localizedName(c)}
                   </option>
                 ))}
               </Select>

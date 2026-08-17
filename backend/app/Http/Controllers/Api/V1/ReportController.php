@@ -32,8 +32,18 @@ class ReportController extends Controller
             'inactive' => $school->students()->where('status', 'inactive')->count(),
             'archived' => $school->students()->where('status', 'archived')->count(),
             'by_grade' => $school->classes()->with('grade')->get()
-                ->groupBy('grade.name')
-                ->map(fn ($c) => $c->sum(fn ($cl) => $cl->students()->where('status', 'active')->count())),
+                ->map(fn ($c) => [
+                    'name' => $c->grade->name ?? 'Ungraded',
+                    'name_ar' => $c->grade->name_ar ?? null,
+                    'count' => $c->students()->where('status', 'active')->count(),
+                ])
+                ->groupBy('name')
+                ->map(fn ($items, $name) => [
+                    'name' => $name,
+                    'name_ar' => $items->first()['name_ar'],
+                    'count' => $items->sum('count'),
+                ])
+                ->values(),
             'new_admissions_this_month' => $school->students()->where('enrollment_date', '>=', now()->startOfMonth())->count(),
         ];
 
@@ -100,7 +110,7 @@ class ReportController extends Controller
 
         $query = \App\Models\ExamSubject::query()
             ->where('status', \App\Enums\GradeStatus::Published)
-            ->with(['exam', 'subject', 'class', 'results'])
+            ->with(['exam', 'subject', 'class.grade', 'results'])
             ->when($data['exam_id'] ?? null, fn ($q, $id) => $q->where('exam_id', $id))
             ->when($data['class_id'] ?? null, fn ($q, $id) => $q->where('class_id', $id));
 
@@ -110,9 +120,12 @@ class ReportController extends Controller
             $marks = $es->results->pluck('marks')->filter();
 
             return [
-                'subject' => $es->subject?->name,
-                'subject_ar' => $es->subject?->name_ar,
+                'name' => $es->subject?->name,
+                'name_ar' => $es->subject?->name_ar,
                 'class' => $es->class?->name,
+                'class_ar' => $es->class?->name_ar,
+                'grade' => $es->class?->grade?->name,
+                'grade_ar' => $es->class?->grade?->name_ar,
                 'exam' => $es->exam?->name,
                 'average' => $marks->isEmpty() ? 0 : round($marks->avg(), 2),
                 'full_marks' => $es->full_marks,

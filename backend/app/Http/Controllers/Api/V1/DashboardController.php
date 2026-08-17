@@ -54,8 +54,20 @@ class DashboardController extends Controller
         $studentsByGrade = $school->classes()
             ->with('grade')
             ->get()
-            ->groupBy('grade.name')
-            ->map(fn ($classes) => $classes->sum(fn ($c) => $c->students()->where('status', 'active')->count()));
+            ->map(fn ($c) => [
+                'name' => $c->grade->name ?? 'Ungraded',
+                'name_ar' => $c->grade->name_ar ?? null,
+                'class_name' => $c->name,
+                'class_name_ar' => $c->name_ar ?? null,
+                'count' => $c->students()->where('status', 'active')->count(),
+            ])
+            ->groupBy('name')
+            ->map(fn ($items, $name) => [
+                'name' => $name,
+                'name_ar' => $items->first()['name_ar'],
+                'count' => $items->sum('count'),
+            ])
+            ->values();
 
         $upcomingExams = $school->exams()
             ->whereDate('start_date', '>=', today())
@@ -82,7 +94,11 @@ class DashboardController extends Controller
                 'absent_today' => $absentToday,
                 'pending_fees_amount' => round($pendingFees, 2),
             ],
-            'students_by_grade' => $studentsByGrade,
+            'students_by_grade' => $studentsByGrade->values()->map(fn ($item) => [
+                'name' => $item['name'],
+                'name_ar' => $item['name_ar'],
+                'count' => $item['count'],
+            ])->values(),
             'upcoming_exams' => $upcomingExams,
             'recent_payments' => $recentPayments->map(fn ($p) => [
                 'id' => $p->id,

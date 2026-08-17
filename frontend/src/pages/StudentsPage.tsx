@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, errorMessage, listMeta, unwrapList } from '../lib/api'
-import { localizedName } from '../lib/format'
+import { isArabic, localizedName } from '../lib/format'
 import type { SchoolClass, Student } from '../lib/types'
 import { Alert, Badge, Button, Card, EmptyState, PageHeader, Pagination, Spinner, Table } from '../components/ui'
 import { Field, Input, Modal, Select } from '../components/form'
@@ -12,7 +12,7 @@ import { useAuth } from '../context/AuthContext'
 
 interface StudentForm {
   first_name: string
-  middle_name: string
+  first_name_ar: string
   last_name: string
   email: string
   system_email: string
@@ -29,7 +29,7 @@ interface StudentForm {
 
 const emptyForm: StudentForm = {
   first_name: '',
-  middle_name: '',
+  first_name_ar: '',
   last_name: '',
   email: '',
   system_email: '',
@@ -130,7 +130,7 @@ export default function StudentsPage() {
     setEditing(s)
     setForm({
       first_name: s.first_name,
-      middle_name: s.middle_name ?? '',
+      first_name_ar: s.first_name_ar ?? '',
       last_name: s.last_name,
       email: s.user?.email ?? '',
       system_email: s.user?.system_email ?? '',
@@ -156,7 +156,7 @@ export default function StudentsPage() {
     setError('')
     const payload = {
       first_name: form.first_name,
-      middle_name: form.middle_name || undefined,
+      first_name_ar: form.first_name_ar || undefined,
       last_name: form.last_name,
       email: form.email || undefined,
       system_email: form.system_email || undefined,
@@ -277,11 +277,11 @@ export default function StudentsPage() {
             {students.map((s) => (
               <tr key={s.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-mono text-xs text-gray-500">{s.student_number}</td>
-                <td className="px-4 py-3 font-medium text-gray-900">{s.full_name}</td>
+                <td className="px-4 py-3 font-medium text-gray-900">{isArabic() ? (s.full_name_ar ?? '') : s.full_name}</td>
                 <td className="px-4 py-3 text-gray-600">{s.class ? localizedName(s.class) : t('students.noClass')}</td>
-                <td className="px-4 py-3 capitalize text-gray-600">{s.gender ?? '—'}</td>
+                <td className="px-4 py-3 text-gray-600">{s.gender ? t(`students.${s.gender}`) : '—'}</td>
                 <td className="px-4 py-3">
-                  <Badge color={s.status === 'active' ? 'green' : 'gray'}>{s.status}</Badge>
+                  <Badge color={s.status === 'active' ? 'green' : 'gray'}>{t(`common.${s.status}`)}</Badge>
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
@@ -319,23 +319,23 @@ export default function StudentsPage() {
           <Field label={t('students.firstName')} required>
             <Input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} required />
           </Field>
+          <Field label={t('students.firstNameAr')} required>
+            <Input value={form.first_name_ar} onChange={(e) => setForm({ ...form, first_name_ar: e.target.value })} required />
+          </Field>
           <Field label={t('students.lastName')} required>
             <Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} required />
           </Field>
-          <Field label={t('students.middleName')}>
-            <Input value={form.middle_name} onChange={(e) => setForm({ ...form, middle_name: e.target.value })} />
+          <Field label={t('students.systemEmail')} required>
+            <Input type="text" value={form.system_email} onChange={(e) => setForm({ ...form, system_email: e.target.value })} placeholder={t('students.systemEmailHint')} required />
           </Field>
-          <Field label={t('students.systemEmail')}>
-            <Input type="text" value={form.system_email} onChange={(e) => setForm({ ...form, system_email: e.target.value })} placeholder={t('students.systemEmailHint')} />
+          <Field label={t('students.realEmail')} required error={studentEmailConflict}>
+            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={t('students.realEmailHint')} required />
           </Field>
-          <Field label={t('students.realEmail')} error={studentEmailConflict}>
-            <Input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder={t('students.realEmailHint')} />
+          <Field label={t('students.dob')} required>
+            <Input type="date" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} required />
           </Field>
-          <Field label={t('students.dob')}>
-            <Input type="date" value={form.date_of_birth} onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })} />
-          </Field>
-          <Field label={t('students.gender')}>
-            <Select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })}>
+          <Field label={t('students.gender')} required>
+            <Select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} required>
               <option value="">—</option>
               <option value="male">{t('students.male')}</option>
               <option value="female">{t('students.female')}</option>
@@ -351,11 +351,11 @@ export default function StudentsPage() {
               ))}
             </Select>
           </Field>
-          <Field label={t('students.enrollmentDate')}>
-            <Input type="date" value={form.enrollment_date} onChange={(e) => setForm({ ...form, enrollment_date: e.target.value })} />
+          <Field label={t('students.enrollmentDate')} required>
+            <Input type="date" value={form.enrollment_date} onChange={(e) => setForm({ ...form, enrollment_date: e.target.value })} required />
           </Field>
-          <Field label={t('students.nationality')}>
-            <Input value={form.nationality} onChange={(e) => setForm({ ...form, nationality: e.target.value })} />
+          <Field label={t('students.nationality')} required>
+            <Input value={form.nationality} onChange={(e) => setForm({ ...form, nationality: e.target.value })} required />
           </Field>
           <Field label={t('students.emergencyContactName')}>
             <Input value={form.emergency_contact_name} onChange={(e) => setForm({ ...form, emergency_contact_name: e.target.value })} />
@@ -364,18 +364,18 @@ export default function StudentsPage() {
             <Input value={form.emergency_contact_relationship} onChange={(e) => setForm({ ...form, emergency_contact_relationship: e.target.value })} />
           </Field>
           <Field label={t('students.emergencyContactPhone')}>
-            <Input value={form.emergency_contact_phone} onChange={(e) => setForm({ ...form, emergency_contact_phone: e.target.value })} />
+            <Input inputMode="numeric" value={form.emergency_contact_phone} onChange={(e) => setForm({ ...form, emergency_contact_phone: e.target.value.replace(/[^0-9]/g, '') })} />
           </Field>
           {!editing && (
             <>
               <div className="col-span-full border-t border-gray-100 pt-4">
                 <h4 className="mb-3 text-sm font-semibold text-gray-600">{t('students.fatherInfo')}</h4>
               </div>
-              <ParentSection role="father" title={t('students.fatherInfo')} value={father} onChange={setFather} />
+              <ParentSection role="father" title={t('students.fatherInfo')} value={father} onChange={setFather} required />
               <div className="col-span-full border-t border-gray-100 pt-4">
                 <h4 className="mb-3 text-sm font-semibold text-gray-600">{t('students.motherInfo')}</h4>
               </div>
-              <ParentSection role="mother" title={t('students.motherInfo')} value={mother} onChange={setMother} />
+              <ParentSection role="mother" title={t('students.motherInfo')} value={mother} onChange={setMother} required />
             </>
           )}
           <div className="col-span-full mt-4 flex justify-end gap-2">

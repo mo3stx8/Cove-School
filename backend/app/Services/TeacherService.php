@@ -22,6 +22,8 @@ class TeacherService
             $user = User::create([
                 'school_id' => $school->id,
                 'name' => $data['name'],
+                'name_ar' => $data['name_ar'] ?? null,
+                'gender' => $data['gender'] ?? null,
                 'system_email' => $data['system_email'],
                 'email' => $data['email'],
                 'phone' => $data['phone'] ?? null,

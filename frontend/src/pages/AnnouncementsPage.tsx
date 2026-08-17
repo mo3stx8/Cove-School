@@ -157,7 +157,7 @@ export default function AnnouncementsPage() {
               </Select>
             </Field>
           ) : (
-            <Field label={t('announcements.expires')}>
+            <Field label={t('announcements.expiresAt')}>
               <Input type="date" value={form.expires_at} onChange={(e) => setForm({ ...form, expires_at: e.target.value })} />
             </Field>
           )}

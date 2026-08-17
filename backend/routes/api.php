@@ -140,10 +140,13 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         Route::get('fee-types', [FeeController::class, 'feeTypes']);
         Route::post('fee-types', [FeeController::class, 'storeFeeType']);
         Route::put('fee-types/{feeType}', [FeeController::class, 'updateFeeType']);
+        Route::delete('fee-types/{feeType}', [FeeController::class, 'destroyFeeType']);
 
         Route::get('invoices', [FeeController::class, 'invoices']);
         Route::post('invoices', [FeeController::class, 'storeInvoice']);
         Route::get('invoices/{studentFee}', [FeeController::class, 'invoice']);
+        Route::put('invoices/{studentFee}', [FeeController::class, 'updateInvoice']);
+        Route::post('invoices/{studentFee}/cancel', [FeeController::class, 'cancelInvoice']);
         Route::post('invoices/{studentFee}/pay', [FeeController::class, 'recordPayment']);
 
         Route::get('payments', [FeeController::class, 'payments']);
