@@ -21,6 +21,7 @@ const AnnouncementsPage = lazy(() => import('./pages/AnnouncementsPage'))
 const ReportsPage = lazy(() => import('./pages/ReportsPage'))
 const NotificationsPage = lazy(() => import('./pages/NotificationsPage'))
 const PortalPage = lazy(() => import('./pages/PortalPage'))
+const UsersPage = lazy(() => import('./pages/UsersPage'))
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage'))
 
 function Protected({ roles, children }: { roles?: string[]; children: ReactNode }) {
@@ -66,6 +67,7 @@ function AppRoutes() {
         >
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/portal" element={<PortalPage />} />
+          <Route path="/users" element={<UsersPage />} />
           <Route path="/students" element={<StudentsPage />} />
           <Route path="/teachers" element={<TeachersPage />} />
           <Route path="/classes" element={<ClassesPage />} />

@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\V1\SetupController;
 use App\Http\Controllers\Api\V1\StudentController;
 use App\Http\Controllers\Api\V1\TeacherController;
 use App\Http\Controllers\Api\V1\TimetableController;
+use App\Http\Controllers\Api\V1\UserController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->middleware('throttle:api')->group(function () {
@@ -95,6 +96,15 @@ Route::prefix('v1')->middleware('throttle:api')->group(function () {
         Route::put('teachers/{teacher}', [TeacherController::class, 'update']);
         Route::post('teachers/{teacher}/archive', [TeacherController::class, 'archive']);
         Route::post('teachers/{teacher}/restore', [TeacherController::class, 'restore']);
+
+        // Users (super admin)
+        Route::get('users', [UserController::class, 'index']);
+        Route::post('users', [UserController::class, 'store']);
+        Route::get('users/{user}', [UserController::class, 'show']);
+        Route::put('users/{user}', [UserController::class, 'update']);
+        Route::post('users/{user}/archive', [UserController::class, 'archive']);
+        Route::post('users/{user}/restore', [UserController::class, 'restore']);
+        Route::post('users/{user}/resend-activation', [UserController::class, 'resendActivation']);
 
         // Timetables
         Route::get('timetables', [TimetableController::class, 'index']);
