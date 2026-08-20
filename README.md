@@ -44,7 +44,7 @@ SiliconCove-SMS/
 ├── backend/          # Laravel 12 API
 │   ├── app/
 │   │   ├── Enums/            # 9 PHP enums (status types)
-│   │   ├── Http/Controllers/ # 17 REST controllers
+│   │   ├── Http/Controllers/ # 18 REST controllers
 │   │   ├── Models/           # 32 Eloquent models
 │   │   ├── Policies/         # 16 authorization policies
 │   │   ├── Services/         # 10 service classes
@@ -56,9 +56,9 @@ SiliconCove-SMS/
 │   └── src/
 │       ├── components/   # UI kit (form.tsx, ui.tsx, Toast.tsx)
 │       ├── context/      # AuthContext
-│       ├── i18n/         # en.ts, ar.ts (497 keys each)
+│       ├── i18n/         # en.ts, ar.ts (510+ keys each)
 │       ├── lib/          # api.ts, types.ts, format.ts
-│       └── pages/        # 17 page components
+│       └── pages/        # 18 page components
 │
 ├── logo/             # Brand assets
 └── Project description.txt
@@ -77,6 +77,7 @@ SiliconCove-SMS/
 - **Timetable** — Weekly period timetable with conflict detection
 
 ### Administration
+- **User Management** — Create, edit, archive, restore user accounts; assign roles (admin/teacher/accountant); resend activation emails (super admin only)
 - **Students** — Enrollment, archive/restore, class assignment, guardian linking, activation emails
 - **Teachers** — Full CRUD, archive/restore, subject assignment
 - **Classes** — CRUD, subject assignment, student enrollment
@@ -99,6 +100,7 @@ SiliconCove-SMS/
 - **Audit logging** — Write operations tracked across the system
 - **Role-based dashboards** — Different overview content per role
 - **Email activation** — New users receive activation links via SMTP
+- **Email domain validation** — System emails restricted to @cove.school, real emails to known providers
 - **Rate limiting** — Login (5/min), password reset (3/10min), API (300/min authed)
 
 ---
@@ -168,6 +170,7 @@ All endpoints are under `/api/v1/` and require a Sanctum Bearer token.
 | Classes | CRUD, subject assignment, student assignment |
 | Students | CRUD, archive/restore, class assignment |
 | Teachers | CRUD, archive/restore |
+| Users | CRUD, archive/restore, resend activation (super admin only) |
 | Timetable | Per-class timetable, entries, conflict detection |
 | Attendance | Grid, take, corrections |
 | Exams | CRUD, marks, workflow, corrections |

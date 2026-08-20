@@ -8,6 +8,7 @@ Architecture:
 
 Core modules:
 - School onboarding wizard (school profile, admin account, academic year, terms, grade scale, first grade/subject, fee type).
+- User management (super admin only): create/edit/archive/restore user accounts, assign roles (admin, teacher, accountant), email uniqueness validation, resend activation links. System email must use @cove.school domain, real email must use a known provider (Gmail, Outlook, Yahoo, etc.).
 - Academic structure: grades, subjects, classes (grade + section), class-subject-teacher assignment, academic years and terms.
 - Student management: enrollment, parent/guardian linking with automatic duplicate-email detection, class assignment, activation emails via SMTP.
 - Teacher management: system login email, real email, specialization, qualification, joining date, employee ID.
@@ -22,6 +23,7 @@ Completed phases:
 - Phase 1-9: Core platform build (backend API, frontend SPA, auth, all modules).
 - Phase 10: Security hardening (IDOR protection, rate limiting, audit logging, file upload restrictions).
 - Admin account management: user CRUD, role assignment, activation flow, profile editing, password management, archive/restore, phone validation, Arabic name support.
+- User management: super admin page for creating/editing/archiving/restoring user accounts with role assignment (admin, teacher, accountant), email domain validation (@cove.school for system email, known providers for real email), resend activation, styled confirmation modals.
 - Fee module: search/filter focus fixes, invoice status auto-recalculation on due date edit, styled confirmation modals for delete and cancel actions, auto-generated fee type codes.
 
 Key features:
@@ -30,6 +32,7 @@ Key features:
 - Fee-type and invoice search by name/code/student ID with status filters.
 - Email activation flow for admin-created user accounts via Gmail SMTP.
 - Styled confirmation modals (Tailwind) replacing native browser dialogs.
+- Email domain validation: system emails restricted to @cove.school, real emails restricted to known providers.
 
 Copyrights for Aogolo.
 SiliconCove Company.
